@@ -19,7 +19,7 @@ source venv/bin/activate
 ./start.sh
 ```
 
-Or run `python3 server/server.py` from the project folder. Open **http://localhost:3000/?demo=reviewed-4**.
+Or run `python3 server/server.py` from the project folder. Open **http://localhost:3000/?demo=understand-5**.
 
 Restart an already-running server to pick up these Python changes. Use this one server for the webpage and `/api/explain`. The old file server on port 8000 cannot provide explanations. If an old preview is still running, use port 3000.
 
@@ -33,20 +33,21 @@ Do not commit or share the key. The server loads this file regardless of which f
 
 ## Check the demo together
 
-1. **Normal warm-up:** At second 30, expect stable-temperature evidence of **90 → 90°C over 10 seconds**. No attention alert.
-2. **Rising engine temperature:** At second 20, expect **92 → 100°C over 10 seconds** and **Needs attention**.
-3. **Evidence versus live values:** Rule evidence stays fixed at the triggering window while the live gauge and chart continue. This is intentional.
-4. **Controls:** Pause freezes readings; Resume continues. Reset clears readings, chart, evidence, and explanation.
-5. **Explanation:** With AI enabled, verify one real **AI explanation**. With `AI_PROVIDER=none`, verify a labeled template. Approved actions and urgency remain controlled by the rules. AI wording that claims normal ranges, component operation, overall health, or adds numbers is rejected in favor of the prepared template. The guard is conservative, not a complete fact checker.
-
-6. **Presentation scope:** Only Dashboard is available. Import, diagnostic scans, Bluetooth, maintenance, settings, and History are not presented as working features.
-7. **Fallback without editing credentials:** In another terminal, run `AI_PROVIDER=none PORT=3002 python3 server/server.py` and open `http://localhost:3002/?demo=reviewed-4`. Repeat either scenario and Reset. This does not change `server/.env`.
+1. Leave **Normal warm-up** selected and click **Start**. Click **Pause**, confirm gauges/chart freeze, then **Resume**.
+2. At second **30**, expect **Temperature steady**, evidence **90 → 90°C over 10 seconds**, a chart circle at **30 s / 90°C**, and highlighted readings from **20–30 s**. Open **Why this demo rule matched** to see the configured stable-rule conditions.
+3. At second **45**, the run finishes. Check the summary says no attention finding was recorded and does not claim the whole vehicle is healthy.
+4. Choose **Rising engine temperature**; the old run clears. Click **Start**. A steady finding appears at second 10; at second **20**, expect **Temperature rising**, **Needs attention**, evidence **92 → 100°C over 10 seconds**, and a triangle at **20 s / 100°C** highlighting **10–20 s**. Open the rule details for actual demo thresholds, not vehicle-specific limits.
+5. Watch the live temperature continue to **112°C**. The triangle stays at the triggering **100°C**. At second **45**, check the summary records the attention at second 20, its readings/window, and A's approved next step.
+6. Open **Understand the terms**. Read **What the car reported** beside **What this means**, and check the AI/template source label. The existing grounding guard and prepared fallback remain active.
+7. Click **Replay** or **Reset**, or change scenarios during an explanation request. Old readings, finding markers/windows, and summary must clear. A late AI reply must not restore them.
+8. **Presentation scope:** Only Dashboard is available. No new pages or hardware features were added.
+9. **Fallback without editing credentials:** In another terminal, run `AI_PROVIDER=none PORT=3002 python3 server/server.py` and open `http://localhost:3002/?demo=understand-5`. Repeat a scenario and Reset. This does not change `server/.env`.
 
 Scenarios last 45 seconds and are time-compressed. Their thresholds are demo rules, not universal limits for real cars.
 
 ## Team handoff
 
-- A's simulator and rules are unchanged. C now installs the existing `createSimulation` factory at startup.
+- A's simulator and rule behavior are preserved. C imports `RULES` for descriptions; the existing downward-step tolerance is now named `rise_step_tolerance_c` in that configuration with the same value. The existing `createSimulation` factory is still installed at startup.
 - B's endpoint receives and returns the same shared formats.
 - `DEMO_INTEGRATION.md` describes the interfaces; `PROJECT_BRIEF.md` contains the overall scope.
 - Keep work on `test`; avoid new features until the full demo is verified.
@@ -54,12 +55,12 @@ Scenarios last 45 seconds and are time-compressed. Their thresholds are demo rul
 ## Focused checks
 
 ```sh
-node --experimental-default-type=module --test tests/part-a.test.mjs tests/ui-demo.test.mjs
+node --experimental-default-type=module --test tests/part-a.test.mjs tests/ui-demo.test.mjs tests/presentation.test.mjs
 python3 -m unittest discover -s tests -p 'test_server.py'
 ```
 
-Use Node 22 or newer for A's tests. Server tests mock model calls and need no API key. All 28 tests pass: 10 simulator/rule tests, 13 server tests, and 5 UI-harness checks. Request validation, response/event matching, grounded fallback, cache identity, both scenarios, pause/resume, and Reset are covered. The UI harness uses stub DOM/Chart objects, so it does not verify actual browser layout.
+Use Node 22 or newer. All **34 tests pass**: 10 simulator/rule tests, 13 server tests, eight UI-harness tests, and three presentation-helper tests. These include the original 28 checks plus rule-description accuracy, timestamp-anchored markers, supporting windows across pauses, event-history summaries, and clearing on Reset/Replay/scenario changes. UI tests use stub DOM/Chart objects and do not verify browser layout.
 
-Live provider calls and final HTTP endpoint checks for both actual simulator findings succeeded with grounded qualitative prose after tightening the prompt. Both endpoint responses returned 200 with source `ai`, matching event IDs, and unchanged approved actions/limitations. Initial live wording rejected by the guard correctly selected prepared templates. No credential file was displayed or edited. Visual browser review is complete: the user confirmed both scenarios, live AI wording, chart rendering, pause/resume, and Reset passed. All 28 tests were independently rerun successfully. Real hardware and offline/CDN failures remain untested. History is hidden; its legacy min/max issue is deferred.
+The prior live AI checks passed. Independent visual review passed for both scenarios, chart markers and supporting windows, expandable rule explanations, glossary, trip summaries, Pause/Resume, Replay, and Reset. All 34 tests were independently confirmed passing. Real hardware and offline/CDN failures remain untested. History remains hidden.
 
-Shared formats are unchanged. Run IDs now include a per-page UUID, and cache keys include the full event payload so an ID cannot return an explanation for changed evidence. See `DEMO_INTEGRATION.md` for the exact request/response checks and connections.
+Shared formats and UI connection functions are unchanged. No server AI/fallback or credential changes were made. See `DEMO_INTEGRATION.md` for rule configuration, marker matching, glossary sources, and summary ownership.

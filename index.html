@@ -21,7 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/styles.css?v=secondlook-reviewed-4">
+    <link rel="stylesheet" href="css/styles.css?v=secondlook-understand-5">
 </head>
 <body>
     <!-- App Header -->
@@ -110,26 +110,24 @@
                 <p id="demo-status" role="status">Ready. Choose a scenario and press Start.</p>
             </section>
             <section class="recommendation-card" id="recommendation-card" aria-labelledby="recommendation-title" aria-live="polite">
-                <div class="recommendation-heading">
-                    <span id="recommendation-urgency">Waiting for data</span>
-                    <span id="explanation-source">No explanation yet</span>
+                <div class="recommendation-heading"><span id="recommendation-urgency">Waiting for data</span></div>
+                <h3 id="recommendation-title">Collecting readings</h3>
+                <div class="next-step"><h4>What to do next</h4><p id="recommendation-next">Choose a scenario, then press Start.</p></div>
+                <div class="finding-columns">
+                    <section aria-labelledby="reported-title">
+                        <h4 id="reported-title">What the car reported</h4>
+                        <p id="recommendation-observation">No readings yet.</p>
+                        <p id="recommendation-evidence">Evidence will appear here as readings arrive.</p>
+                        <p id="finding-duration">Waiting for analysis.</p>
+                        <details class="rule-details"><summary>Why this demo rule matched</summary><p id="finding-rule">Waiting for analysis.</p></details>
+                    </section>
+                    <section aria-labelledby="meaning-title">
+                        <h4 id="meaning-title">What this means</h4>
+                        <p id="recommendation-why">A series of readings helps show how temperature changes over time.</p>
+                        <p id="explanation-source" class="finding-source">No explanation yet</p>
+                    </section>
                 </div>
-                <h3 id="recommendation-title">Start a simulated drive</h3>
-                <dl class="recommendation-details">
-                    <div><dt>What we noticed</dt><dd id="recommendation-observation">No readings yet.</dd></div>
-                    <div><dt>Why it matters</dt><dd id="recommendation-why">A series of readings helps show how temperature changes over time.</dd></div>
-                    <div><dt>What to do next</dt><dd id="recommendation-next">Choose a scenario, then press Start.</dd></div>
-                    <div><dt>What we can’t tell</dt><dd id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</dd></div>
-                </dl>
-                <section class="recommendation-evidence" aria-labelledby="finding-title">
-                    <h4 id="finding-title">Rule evidence</h4>
-                    <p class="finding-source">Rule-based finding · Supplied by the analysis module</p>
-                    <dl class="finding-details">
-                        <div><dt>Rule</dt><dd id="finding-rule">Waiting for analysis.</dd></div>
-                        <div><dt>Readings at the time of the finding</dt><dd id="recommendation-evidence">Evidence will appear here as readings arrive.</dd></div>
-                        <div><dt>Observation duration</dt><dd id="finding-duration">Waiting for analysis.</dd></div>
-                    </dl>
-                </section>
+                <div class="finding-limitation"><h4>What we can’t tell</h4><p id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</p></div>
             </section>
             <div class="dashboard-grid demo-readings" aria-label="Latest vehicle readings">
                 <div class="metric-card"><div class="metric-label">Engine speed</div><div class="metric-value" id="rpm-value">—</div><div class="metric-unit">RPM</div></div>
@@ -142,7 +140,21 @@
                 <p>Coolant carries heat away from the engine. This chart shows this run only.</p>
                 <div class="demo-chart"><canvas id="coolant-trend" role="img" aria-label="Coolant temperature in degrees Celsius by elapsed seconds"></canvas></div>
                 <p id="chart-status">Waiting for readings.</p>
+                <p id="chart-findings">No findings marked yet.</p>
             </section>
+            <section class="demo-panel" id="trip-summary" aria-labelledby="trip-summary-title" hidden>
+                <p class="finding-source">End of simulated trip</p>
+                <h3 id="trip-summary-title">Trip summary</h3>
+                <p id="trip-summary-details"></p><p id="trip-summary-next"></p>
+            </section>
+            <details class="demo-panel glossary">
+                <summary>Understand the terms</summary>
+                <dl><dt>Coolant temperature (°C)</dt><dd id="glossary-coolant"></dd>
+                    <dt>Engine load (%)</dt><dd id="glossary-load"></dd>
+                    <dt>Engine speed (RPM)</dt><dd id="glossary-rpm"></dd>
+                    <dt>Observation window</dt><dd id="glossary-window"></dd></dl>
+                <p class="finding-source">Definitions checked against <a href="https://www.ford.co.uk/support/how-tos/owner-resources/vehicle-maintenance/how-to-check-and-add-engine-coolant" target="_blank" rel="noopener">Ford’s coolant guide</a> and the <a href="https://otctools.com/sites/default/files/pdf_english_16336.pdf" target="_blank" rel="noopener">OTC scan-tool guide</a>. They describe concepts, not your vehicle’s condition.</p>
+            </details>
         </div>
 
         <!-- Connect View -->
@@ -347,6 +359,6 @@
         window.SampleDataGenerator = SampleDataGenerator;
         window.ChartManager = ChartManager;
     </script>
-    <script src="js/app.js?v=secondlook-reviewed-4" type="module"></script>
+    <script src="js/app.js?v=secondlook-understand-5" type="module"></script>
 </body>
 </html>

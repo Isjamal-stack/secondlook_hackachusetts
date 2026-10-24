@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { createSimulation } from '../js/simulation.js';
+import * as presentation from '../js/demo-presentation.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8');
@@ -26,7 +27,7 @@ function harness(explain = event => Promise.resolve(explanationFor(event))) {
         clearInterval(id) { timers.delete(id); }
     };
     const context = vm.createContext({
-        console: { log() {} }, window: {}, crypto: webcrypto, AbortController, setTimeout, clearTimeout,
+        ...presentation, console: { log() {} }, window: {}, crypto: webcrypto, AbortController, setTimeout, clearTimeout,
         document: { addEventListener() {}, getElementById: id => elements.get(id), querySelector: () => ({ textContent: '' }) },
         createExamplePreview() { throw new Error('Examples should not be the integrated default'); },
         createSimulation(options) {
@@ -83,6 +84,9 @@ test('Reset during explanation request ignores the late answer', async () => {
     h.ui.reset(); pending.forEach(resolve => resolve()); await flush();
     assert.equal(h.el('explanation-source').textContent, 'No explanation yet');
     assert.equal(h.el('recommendation-observation').textContent, 'No readings yet.');
+    assert.equal(h.el('trip-summary').hidden, true);
+    assert.equal(h.state('demo.chart.data.datasets.length'), 3);
+    assert.equal(h.state('demo.events.length'), 0);
 });
 
 test('new page sessions and new runs have different event prefixes', async () => {
@@ -102,4 +106,52 @@ test('unfinished pages are hidden, disabled, inert, and false success messages a
     assert.doesNotMatch(html, /No active trouble codes/);
     assert.doesNotMatch(appSource, /Imported .*successfully/);
     assert.match(appSource, /if \(viewName !== 'dashboard'\) return/);
+});
+
+
+test('status follows A’s event and cannot be overwritten by an AI title', async () => {
+    const h = harness(event => Promise.resolve({ ...explanationFor(event, 'ai'), title: 'An unrelated title' }));
+    assert.equal(h.el('recommendation-title').textContent, 'Collecting readings');
+    h.ui.start(); h.step(30); await flush();
+    assert.equal(h.el('recommendation-title').textContent, 'Temperature steady');
+    const event = h.state('demo.event');
+    h.ui.renderAnalysis({ ...event, event_id: 'unavailable', condition: 'data_unavailable', urgency: 'unknown', evidence: [] });
+    assert.equal(h.el('recommendation-title').textContent, 'Readings unavailable');
+    assert.equal(h.el('recommendation-card').dataset.urgency, 'unknown');
+    h.ui.reset(); await flush();
+});
+
+test('chart marks actual trigger values, keeps frozen windows, and completes an accurate attention summary', async () => {
+    const h = harness(); h.el('demo-scenario').value = 'temperature-rise'; h.ui.start(); h.step(45); await flush();
+    assert.equal(h.el('coolant-value').textContent, '112');
+    assert.equal(h.el('recommendation-title').textContent, 'Temperature rising');
+    const marker = h.state('demo.chart.data.datasets[2].data[0]');
+    assert.equal(marker.x, 20); assert.equal(marker.y, 100);
+    const window = h.state('demo.chart.data.datasets.at(-1).data');
+    assert.equal(window[0].x, 10); assert.equal(window[0].y, 92);
+    assert.equal(window.at(-1).x, 20); assert.equal(window.at(-1).y, 100);
+    assert.match(h.el('chart-findings').textContent, /Temperature rising at 20 s.*10–20 s/);
+    assert.equal(h.el('trip-summary').hidden, false);
+    assert.match(h.el('trip-summary-title').textContent, /attention finding was recorded/);
+    assert.match(h.el('trip-summary-details').textContent, /At 20 s: 92 → 100 °C over 10 s/);
+    assert.ok(h.el('trip-summary-details').textContent.includes(h.state('demo.event.approved_next_step')));
+    h.ui.start(); // Replay resets all previous artifacts before emitting the new first row.
+    assert.equal(h.el('trip-summary').hidden, true);
+    assert.equal(h.el('trip-summary-details').textContent, '');
+    assert.equal(h.state('demo.chart.data.datasets.length'), 3);
+    assert.equal(h.state('demo.chart.data.datasets[2].data.length'), 0);
+    assert.equal(h.state('demo.events.length'), 1); // Only the new collecting event.
+    h.ui.reset(); await flush();
+});
+
+test('normal trip summary is narrow, with a steady marker at 30 s; scenario change clears it', async () => {
+    const h = harness(); h.ui.start(); h.step(45); await flush();
+    assert.match(h.el('trip-summary-title').textContent, /No attention finding was recorded/);
+    assert.match(h.el('trip-summary-details').textContent, /does not establish/);
+    assert.equal(h.state('demo.chart.data.datasets[1].data[0].x'), 30);
+    assert.equal(h.state('demo.chart.data.datasets[1].data[0].y'), 90);
+    h.el('demo-scenario').value = 'temperature-rise'; h.el('demo-scenario').listeners.change();
+    assert.equal(h.el('trip-summary').hidden, true);
+    assert.equal(h.state('demo.events.length'), 0);
+    assert.equal(h.state('demo.chart.data.datasets[1].data.length'), 0);
 });

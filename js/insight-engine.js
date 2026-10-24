@@ -1,7 +1,7 @@
 /** Prototype rules for simulated scenarios, NOT universal vehicle limits. */
 export const RULES = Object.freeze({
     window_s: 10, stale_ms: 3000, max_gap_s: 2,
-    rise_baseline_c: 92, rise_end_c: 100, rise_delta_c: 4,
+    rise_baseline_c: 92, rise_end_c: 100, rise_delta_c: 4, rise_step_tolerance_c: 0.5,
     normal_min_c: 85, normal_max_c: 94, stable_range_c: 2,
     recovery_s: 15,
     next_steps: Object.freeze({
@@ -68,7 +68,7 @@ export function createInsightEngine({ scenario_id, run_id }) {
         const values = window.map(p => p.coolant_c);
         const sustained = first.coolant_c >= RULES.rise_baseline_c && r.coolant_c >= RULES.rise_end_c &&
             r.coolant_c - first.coolant_c >= RULES.rise_delta_c &&
-            values.every((v, i) => !i || v >= values[i - 1] - 0.5);
+            values.every((v, i) => !i || v >= values[i - 1] - RULES.rise_step_tolerance_c);
         if (sustained) return emit('sustained_temperature_rise', evidence, r.timestamp_ms);
         const recovery = active === 'sustained_temperature_rise';
         const stableWindow = recovery ? readings : window;

@@ -770,3 +770,19 @@ body {
 
 /* Keep unfinished sections out of the presentation, including legacy flex rules. */
 [hidden] { display: none !important; }
+
+/* Keep the finding and action prominent; secondary detail expands on demand. */
+.next-step { padding: 14px 16px; background: #eef5fc; border-radius: 6px; margin-bottom: 20px; }
+.next-step h4, .finding-columns h4, .finding-limitation h4 { margin-bottom: 6px; }
+.finding-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.finding-columns p { margin-bottom: 8px; }
+.rule-details { margin-top: 12px; }
+.rule-details summary, .glossary summary { cursor: pointer; font-weight: 600; }
+.rule-details p { margin-top: 10px; }
+.finding-limitation { border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 18px; }
+#chart-findings { margin-top: 10px; font-size: 13px; color: #424242; }
+#trip-summary p { margin-top: 10px; }
+.glossary dt { margin-top: 14px; font-weight: 600; }
+.glossary dd { margin: 4px 0 0; }
+.glossary .finding-source { margin-top: 16px; }
+@media (max-width: 700px) { .finding-columns { grid-template-columns: 1fr; } }
