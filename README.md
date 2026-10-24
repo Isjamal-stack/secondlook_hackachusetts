@@ -1,3 +1,5 @@
+<img width="1672" height="941" alt="16727805-523D-436D-BEE3-EE32DD00736A" src="https://github.com/user-attachments/assets/579de4bc-c48f-4b22-aeba-5f507da71143" />
+<img width="1254" height="1254" alt="SecondLook geometric brand identity-1" src="https://github.com/user-attachments/assets/dd78ae60-fc45-437d-87df-0161a9aa607b" />
 # ELM327 Vehicle Insights Web Application
 
 A Progressive Web Application for monitoring vehicle health, predicting maintenance needs, and analyzing driving performance using ELM327 OBD-II adapters.
