@@ -30,7 +30,7 @@ AI_PROVIDER = os.getenv('AI_PROVIDER', 'none')
 
 # Request tracking for duplicate prevention
 processed_events = {}
-CACHE_DURATION_MS = 60000  # 1 minute
+CACHE_DURATION_MS = 60000  # 1 minute (set to 0 to disable caching during development)
 
 
 def cleanup_cache():
@@ -68,7 +68,9 @@ def validate_analysis_event(event):
             if not isinstance(item, dict):
                 errors.append('Each evidence item must be an object')
                 continue
-            if item.get('metric') not in ('coolant_c', 'rpm', 'speed_kmh', 'engine_load_pct'):
+            if item.get('metric') not in ('coolant_c', 'rpm', 'speed_kmh', 'engine_load_pct', 
+                                          'intake_air_temp_c', 'battery_voltage', 'fuel_trim_short_pct', 
+                                          'fuel_trim_long_pct', 'maf_gps', 'o2_sensor_v', 'throttle_pos_pct'):
                 errors.append('Evidence metric must use the shared reading format')
             for field in ('start_value', 'end_value', 'duration_s'):
                 if not finite_number(item.get(field)):

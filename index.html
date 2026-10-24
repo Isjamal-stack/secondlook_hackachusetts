@@ -6,7 +6,7 @@
     <meta name="description" content="Monitor vehicle health, predict maintenance needs, and analyze driving performance with ELM327 OBD-II adapters">
     <meta name="theme-color" content="#1976d2">
     
-    <title>ELM327 Vehicle Insights</title>
+    <title>SecondLook Vehicle Insights</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -124,16 +124,29 @@
                     <section aria-labelledby="meaning-title">
                         <h4 id="meaning-title">What this means</h4>
                         <p id="recommendation-why">A series of readings helps show how temperature changes over time.</p>
+                        
+                        <h5>Likely Causes</h5>
+                        <p id="likely-causes">—</p>
+                        
+                        <h5>Why It Matters</h5>
+                        <p id="why-it-matters">—</p>
+                        
+                        <h5>What To Do</h5>
+                        <p id="what-to-do">—</p>
+                        
                         <p id="explanation-source" class="finding-source">No explanation yet</p>
                     </section>
                 </div>
-                <div class="finding-limitation"><h4>What we can’t tell</h4><p id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</p></div>
             </section>
             <div class="dashboard-grid demo-readings" aria-label="Latest vehicle readings">
                 <div class="metric-card"><div class="metric-label">Engine speed</div><div class="metric-value" id="rpm-value">—</div><div class="metric-unit">RPM</div></div>
                 <div class="metric-card"><div class="metric-label">Vehicle speed</div><div class="metric-value" id="speed-value">—</div><div class="metric-unit">km/h</div></div>
                 <div class="metric-card"><div class="metric-label">Coolant temperature</div><div class="metric-value" id="coolant-value">—</div><div class="metric-unit">°C</div></div>
                 <div class="metric-card"><div class="metric-label">Engine load</div><div class="metric-value" id="load-value">—</div><div class="metric-unit">%</div></div>
+                <div class="metric-card"><div class="metric-label">Intake air temp</div><div class="metric-value" id="intake-air-value">—</div><div class="metric-unit">°C</div></div>
+                <div class="metric-card"><div class="metric-label">Battery voltage</div><div class="metric-value" id="battery-value">—</div><div class="metric-unit">V</div></div>
+                <div class="metric-card"><div class="metric-label">Fuel trim (short)</div><div class="metric-value" id="fuel-trim-short-value">—</div><div class="metric-unit">%</div></div>
+                <div class="metric-card"><div class="metric-label">Mass air flow</div><div class="metric-value" id="maf-value">—</div><div class="metric-unit">g/s</div></div>
             </div>
             <section class="demo-panel" aria-labelledby="coolant-chart-title">
                 <h3 id="coolant-chart-title">Coolant temperature over time</h3>

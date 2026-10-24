@@ -786,3 +786,123 @@ body {
 .glossary dd { margin: 4px 0 0; }
 .glossary .finding-source { margin-top: 16px; }
 @media (max-width: 700px) { .finding-columns { grid-template-columns: 1fr; } }
+
+
+/* Enhanced metrics styling */
+.metric-card {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    transition: color 0.3s ease;
+}
+
+/* Color coding for different value ranges */
+#coolant-value.warning {
+    color: #ff9800;
+}
+
+#coolant-value.danger {
+    color: #f44336;
+}
+
+#battery-value.low {
+    color: #ff9800;
+}
+
+#fuel-trim-short-value.lean,
+#fuel-trim-short-value.rich {
+    color: #ff9800;
+}
+
+/* Dashboard grid responsive improvements */
+@media (min-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Pulse animation for new readings */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.metric-value.updating {
+    animation: pulse 0.5s ease-in-out;
+}
+
+/* Enhanced recommendation card */
+.demo-panel.active-recommendation {
+    border-left: 4px solid #2196f3;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Health score indicator */
+.health-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.health-indicator.good {
+    background-color: #4caf50;
+}
+
+.health-indicator.warning {
+    background-color: #ff9800;
+}
+
+.health-indicator.critical {
+    background-color: #f44336;
+}
+
+/* Improved chart styling */
+.demo-chart canvas {
+    max-height: 400px;
+}
+
+/* Better finding display */
+.finding-observation {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.finding-observation h3 {
+    color: white;
+    margin-top: 0;
+}

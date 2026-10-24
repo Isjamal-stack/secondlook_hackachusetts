@@ -15,7 +15,19 @@ export const LIMITATIONS = Object.freeze([
     'Simulated data and prototype scenario rules; thresholds are not calibrated for every vehicle.',
     'Exact mechanical cause cannot be determined from these readings.'
 ]);
-const ranges = { rpm: [0, 10000], speed_kmh: [0, 300], coolant_c: [-40, 215], engine_load_pct: [0, 100] };
+const ranges = { 
+    rpm: [0, 10000], 
+    speed_kmh: [0, 300], 
+    coolant_c: [-40, 215], 
+    engine_load_pct: [0, 100],
+    intake_air_temp_c: [-40, 100],
+    battery_voltage: [10, 16],
+    fuel_trim_short_pct: [-50, 50],
+    fuel_trim_long_pct: [-50, 50],
+    maf_gps: [0, 500],
+    o2_sensor_v: [0, 1.2],
+    throttle_pos_pct: [0, 100]
+};
 
 /** Never coerce null, strings, NaN, or out-of-range measurements into zero. */
 export function validateReading(input) {

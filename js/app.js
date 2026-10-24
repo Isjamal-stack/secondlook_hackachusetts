@@ -1017,7 +1017,7 @@ export function resetDemo() {
     demoElement('trip-summary').hidden = true;
     for (const id of ['trip-summary-title', 'trip-summary-details', 'trip-summary-next']) demoText(id, '');
     demoText('chart-findings', 'No findings marked yet.');
-    for (const id of ['rpm-value', 'speed-value', 'coolant-value', 'load-value']) demoText(id, '—');
+    for (const id of ['rpm-value', 'speed-value', 'coolant-value', 'load-value', 'intake-air-value', 'battery-value', 'fuel-trim-short-value', 'maf-value']) demoText(id, '—');
     if (demo.chart) {
         demo.chart.data.datasets.splice(3);
         demo.chart.data.datasets.forEach(dataset => { dataset.data = []; });
@@ -1030,8 +1030,11 @@ export function resetDemo() {
     demoText('recommendation-title', findingStatus(null));
     demoText('recommendation-observation', 'No readings yet.');
     demoText('recommendation-why', 'A series of readings helps show how temperature changes over time.');
+    demoText('likely-causes', '—');
+    demoText('why-it-matters', '—');
+    demoText('what-to-do', '—');
     demoText('recommendation-next', 'Choose a scenario, then press Start.');
-    demoText('recommendation-limitation', 'Simulated readings cannot tell us the condition of your car.');
+    // recommendation-limitation element removed - no longer displaying limitations
     demoText('recommendation-evidence', 'Evidence will appear here as readings arrive.');
     demoText('finding-rule', 'Waiting for analysis.');
     demoText('finding-duration', 'Waiting for analysis.');
@@ -1098,7 +1101,16 @@ export function renderReading(reading) {
         !Number.isFinite(reading.elapsed_s) || !Number.isFinite(reading.timestamp_ms)) return false;
     demo.reading = reading;
     demo.readings.push({ ...reading });
-    for (const [id, metric] of [['rpm-value', 'rpm'], ['speed-value', 'speed_kmh'], ['coolant-value', 'coolant_c'], ['load-value', 'engine_load_pct']]) {
+    for (const [id, metric] of [
+        ['rpm-value', 'rpm'], 
+        ['speed-value', 'speed_kmh'], 
+        ['coolant-value', 'coolant_c'], 
+        ['load-value', 'engine_load_pct'],
+        ['intake-air-value', 'intake_air_temp_c'],
+        ['battery-value', 'battery_voltage'],
+        ['fuel-trim-short-value', 'fuel_trim_short_pct'],
+        ['maf-value', 'maf_gps']
+    ]) {
         demoText(id, numberText(reading[metric]));
     }
     if (demo.chart) {
@@ -1165,13 +1177,46 @@ export function renderExplanation(explanation) {
     if (!demo.event || explanation?.event_id !== demo.event.event_id ||
         !['ai', 'template'].includes(explanation.explanation_source) ||
         !['title', 'explanation', 'next_step', 'limitation'].every(key => typeof explanation[key] === 'string' && explanation[key].trim())) return false;
+    
+    // Parse and display the AI explanation in structured sections
+    const explanation_text = explanation.explanation || '';
+    
+    // Parse sections from the AI response
+    const sections = {
+        summary: '',
+        likely_causes: '',
+        why_it_matters: '',
+        what_to_do: ''
+    };
+    
+    // Extract SUMMARY
+    const summaryMatch = explanation_text.match(/SUMMARY:\s*(.+?)(?=LIKELY_CAUSES:|WHY_IT_MATTERS:|WHAT_TO_DO:|$)/s);
+    if (summaryMatch) sections.summary = summaryMatch[1].trim();
+    
+    // Extract LIKELY_CAUSES
+    const causesMatch = explanation_text.match(/LIKELY_CAUSES:\s*(.+?)(?=WHY_IT_MATTERS:|WHAT_TO_DO:|$)/s);
+    if (causesMatch) sections.likely_causes = causesMatch[1].trim();
+    
+    // Extract WHY_IT_MATTERS
+    const whyMatch = explanation_text.match(/WHY_IT_MATTERS:\s*(.+?)(?=WHAT_TO_DO:|$)/s);
+    if (whyMatch) sections.why_it_matters = whyMatch[1].trim();
+    
+    // Extract WHAT_TO_DO
+    const whatMatch = explanation_text.match(/WHAT_TO_DO:\s*(.+?)$/s);
+    if (whatMatch) sections.what_to_do = whatMatch[1].trim();
+    
+    // Fill in the sections
+    demoText('recommendation-why', sections.summary || 'Analyzing vehicle data...');
+    demoText('likely-causes', sections.likely_causes || '—');
+    demoText('why-it-matters', sections.why_it_matters || '—');
+    demoText('what-to-do', sections.what_to_do || '—');
+    
     // The overall status belongs to A's current event, never the AI title.
-    demoText('recommendation-why', explanation.explanation);
     // Approved guidance and limitations always come from the analysis event.
     demoText('recommendation-next', demo.event.approved_next_step);
     const limitations = [...demo.event.limitations];
     if (!limitations.join(' ').includes(explanation.limitation)) limitations.push(explanation.limitation);
-    demoText('recommendation-limitation', [...new Set(limitations)].join(' '));
+    // recommendation-limitation element removed - no longer displaying limitations
     demoText('explanation-source', demo.example ? 'Example explanation · Temporary preview' : explanation.explanation_source === 'ai' ? 'AI explanation' : 'Template explanation · Fallback');
     return true;
 }

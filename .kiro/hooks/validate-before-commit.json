@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Validate Code Before Commit",
+      "trigger": "PreTaskExec",
+      "description": "Reminds the agent to verify code works before committing",
+      "action": {
+        "type": "agent",
+        "prompt": "Before committing changes:\n1. Verify the Flask server starts without errors\n2. Test the demo mode at http://localhost:3000/?demo=1\n3. Ensure no JavaScript errors in browser console\n4. Check that AI insights display correctly (if API key is configured)\n5. Confirm all modified files are staged"
+      }
+    }
+  ]
+}
