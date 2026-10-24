@@ -1048,6 +1048,8 @@ export function resetDemo() {
     demoText('recommendation-next', 'Choose a scenario, then press Start.');
     demoText('recommendation-limitation', 'Simulated readings cannot tell us the condition of your car.');
     demoText('recommendation-evidence', 'Evidence will appear here as readings arrive.');
+    demoText('finding-rule', 'Waiting for analysis.');
+    demoText('finding-duration', 'Waiting for analysis.');
     setDemoStatus('ready', 'Ready. Choose a scenario and press Start.');
 }
 
@@ -1102,8 +1104,14 @@ export function renderReading(reading) {
 }
 
 const evidenceUnits = { coolant_c: '°C', rpm: 'RPM', speed_kmh: 'km/h', engine_load_pct: '%' };
-function evidenceText(event) {
-    return event.evidence.map(item => `${item.metric === 'coolant_c' ? 'Coolant temperature' : item.metric.replaceAll('_', ' ')}: ${numberText(item.start_value)} → ${numberText(item.end_value)} ${evidenceUnits[item.metric] || ''} over ${numberText(item.duration_s)} s.`).join(' ');
+const evidenceLabels = { coolant_c: 'Coolant temperature', rpm: 'Engine speed', speed_kmh: 'Vehicle speed', engine_load_pct: 'Engine load' };
+const metricLabel = metric => evidenceLabels[metric] || metric.replaceAll('_', ' ');
+const conditionLabels = {
+    sustained_temperature_rise: 'Sustained temperature rise',
+    normal_warmup: 'Normal warm-up'
+};
+function evidenceText(event, includeDuration = true) {
+    return event.evidence.map(item => `${metricLabel(item.metric)}: ${numberText(item.start_value)} → ${numberText(item.end_value)} ${evidenceUnits[item.metric] || ''}${includeDuration ? ` over ${numberText(item.duration_s)} s` : ''}.`).join(' ');
 }
 
 /** Render the analysis immediately. Explanation requests never block the readings. */
@@ -1118,7 +1126,11 @@ export function renderAnalysis(event, explanation = null, { example = false } = 
     demo.example = example;
     demoElement('recommendation-card').dataset.urgency = event.urgency;
     demoText('recommendation-urgency', { normal: 'Normal pattern', attention: 'Needs attention', urgent: 'Urgent', unknown: 'Not enough information' }[event.urgency]);
-    demoText('recommendation-evidence', evidenceText(event) || 'No numeric evidence supplied.');
+    demoText('finding-rule', typeof event.condition === 'string' && event.condition.trim()
+        ? conditionLabels[event.condition] || event.condition.replaceAll('_', ' ') : 'Rule name not supplied.');
+    demoText('recommendation-evidence', evidenceText(event, false) || 'No numeric evidence supplied.');
+    demoText('finding-duration', event.evidence.map(item =>
+        `${metricLabel(item.metric)}: ${numberText(item.duration_s)} s`).join(' · ') || 'Observation duration not supplied.');
     demoText('recommendation-observation', evidenceText(event) || 'Waiting for enough readings to describe a pattern.');
     // Honest, neutral UI fallback; the analysis layer owns the condition and action.
     renderExplanation({ event_id: event.event_id, title: 'A reading pattern needs your review',
