@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Monitor vehicle health, predict maintenance needs, and analyze driving performance with ELM327 OBD-II adapters">
+    <meta name="theme-color" content="#1976d2">
+    
+    <title>ELM327 Vehicle Insights</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                </svg>
+                Vehicle Insights
+            </h1>
+            <div class="header-actions">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Disconnected</span>
+                </div>
+                <button class="install-button" id="installButton" style="display: none;">
+                    Install App
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="main-nav">
+        <button class="nav-item active" data-view="dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+            </svg>
+            <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="connect">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>
+            </svg>
+            <span>Connect</span>
+        </button>
+        <button class="nav-item" data-view="diagnostics">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 8c-1.45 0-2.26 1.44-1.93 2.51l-3.55 3.56c-.3-.09-.74-.09-1.04 0l-2.55-2.55C12.27 10.45 11.46 9 10 9c-1.45 0-2.27 1.44-1.93 2.52l-4.56 4.55C2.44 15.74 1 16.55 1 18c0 1.1.9 2 2 2 1.45 0 2.26-1.44 1.93-2.51l4.55-4.56c.3.09.74.09 1.04 0l2.55 2.55C12.73 16.55 13.54 18 15 18c1.45 0 2.27-1.44 1.93-2.52l3.56-3.55c1.07.33 2.51-.48 2.51-1.93 0-1.1-.9-2-2-2z"/>
+            </svg>
+            <span>Diagnostics</span>
+        </button>
+        <button class="nav-item" data-view="history">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+            </svg>
+            <span>History</span>
+        </button>
+        <button class="nav-item" data-view="maintenance">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
+            </svg>
+            <span>Maintenance</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+            <span>Settings</span>
+        </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Dashboard View -->
+        <div class="view active" id="dashboard-view">
+            <div class="view-header">
+                <h2>Dashboard</h2>
+                <p class="view-subtitle">Real-time vehicle metrics</p>
+            </div>
+            <div class="dashboard-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Engine RPM</div>
+                    <div class="metric-value" id="rpm-value">0</div>
+                    <div class="metric-unit">RPM</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Speed</div>
+                    <div class="metric-value" id="speed-value">0</div>
+                    <div class="metric-unit">MPH</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Coolant Temp</div>
+                    <div class="metric-value" id="coolant-value">0</div>
+                    <div class="metric-unit">°F</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Engine Load</div>
+                    <div class="metric-value" id="load-value">0</div>
+                    <div class="metric-unit">%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Fuel Level</div>
+                    <div class="metric-value" id="fuel-value">0</div>
+                    <div class="metric-unit">%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Throttle</div>
+                    <div class="metric-value" id="throttle-value">0</div>
+                    <div class="metric-unit">%</div>
+                </div>
+            </div>
+            <div class="status-message">
+                <p>Connect to your ELM327 device or load sample data to begin monitoring.</p>
+            </div>
+        </div>
+
+        <!-- Connect View -->
+        <div class="view" id="connect-view">
+            <div class="view-header">
+                <h2>Connect Device</h2>
+                <p class="view-subtitle">Connect via Bluetooth or upload data files</p>
+            </div>
+            <div class="connect-options">
+                <div class="connect-card">
+                    <h3>Web Bluetooth</h3>
+                    <p>Connect directly to your ELM327 adapter</p>
+                    <button class="btn btn-primary" id="bluetoothConnectBtn">Connect Device</button>
+                    <div class="feature-support" id="bluetoothSupport"></div>
+                </div>
+                <div class="connect-card">
+                    <h3>File Upload</h3>
+                    <p>Import OBD-II data from CSV or JSON files</p>
+                    <button class="btn btn-secondary" id="fileUploadBtn">Upload Data</button>
+                    <input type="file" id="fileInput" accept=".csv,.json" style="display: none;">
+                </div>
+            </div>
+            <div class="terminal-section" id="terminalSection" style="display: none;">
+                <h3>Debug Terminal</h3>
+                <div class="terminal-output" id="terminalOutput"></div>
+                <div class="terminal-input">
+                    <input type="text" id="terminalInput" placeholder="Enter AT command or PID (e.g., ATZ, 010C)">
+                    <button class="btn btn-small" id="terminalSend">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagnostics View -->
+        <div class="view" id="diagnostics-view">
+            <div class="view-header">
+                <h2>Diagnostics</h2>
+                <p class="view-subtitle">Diagnostic trouble codes and system status</p>
+            </div>
+            <div class="diagnostics-content">
+                <div class="dtc-section">
+                    <h3>Active Trouble Codes</h3>
+                    <div id="activeDtcList" class="dtc-list">
+                        <p class="placeholder-text">No active trouble codes</p>
+                    </div>
+                    <button class="btn btn-secondary" id="clearDtcBtn">Clear Codes</button>
+                </div>
+                <div class="dtc-history-section">
+                    <h3>Code History</h3>
+                    <div id="dtcHistory" class="dtc-history">
+                        <p class="placeholder-text">No historical codes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History View -->
+        <div class="view" id="history-view">
+            <div class="view-header">
+                <h2>History</h2>
+                <p class="view-subtitle">Historical data and trends</p>
+            </div>
+            <div class="history-controls">
+                <select id="dateRange" class="form-control">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="all">All time</option>
+                </select>
+                <select id="metricSelect" class="form-control">
+                    <option value="rpm">Engine RPM</option>
+                    <option value="speed">Vehicle Speed</option>
+                    <option value="coolant_temp">Coolant Temperature</option>
+                    <option value="fuel_level">Fuel Level</option>
+                </select>
+            </div>
+            <div class="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Average</div>
+                    <div class="stat-value" id="avgStat">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Minimum</div>
+                    <div class="stat-value" id="minStat">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Maximum</div>
+                    <div class="stat-value" id="maxStat">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance View -->
+        <div class="view" id="maintenance-view">
+            <div class="view-header">
+                <h2>Maintenance</h2>
+                <p class="view-subtitle">Service schedules and reminders</p>
+            </div>
+            <div class="maintenance-grid">
+                <div class="maintenance-card">
+                    <h3>Oil Change</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="maintenance-status">Due in -- miles</p>
+                    <button class="btn btn-small">Mark Complete</button>
+                </div>
+                <div class="maintenance-card">
+                    <h3>Tire Rotation</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="maintenance-status">Due in -- miles</p>
+                    <button class="btn btn-small">Mark Complete</button>
+                </div>
+                <div class="maintenance-card">
+                    <h3>Inspection</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="maintenance-status">Due in -- days</p>
+                    <button class="btn btn-small">Mark Complete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="view" id="settings-view">
+            <div class="view-header">
+                <h2>Settings</h2>
+                <p class="view-subtitle">Configure your application</p>
+            </div>
+            <div class="settings-sections">
+                <div class="settings-section">
+                    <h3>Vehicle Profile</h3>
+                    <div class="form-group">
+                        <label>VIN</label>
+                        <input type="text" id="vinInput" class="form-control" placeholder="17-digit VIN">
+                    </div>
+                    <div class="form-group">
+                        <label>Make</label>
+                        <input type="text" id="makeInput" class="form-control" placeholder="e.g., Toyota">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" id="modelInput" class="form-control" placeholder="e.g., Auris Hybrid">
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="number" id="yearInput" class="form-control" placeholder="2015">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Units</h3>
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="units" value="imperial" checked> Imperial (mph, °F, miles)
+                        </label>
+                        <label>
+                            <input type="radio" name="units" value="metric"> Metric (km/h, °C, km)
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Data Management</h3>
+                    <button class="btn btn-secondary" id="loadSampleDataBtn">Load Sample Data</button>
+                    <button class="btn btn-secondary" id="exportDataBtn">Export All Data</button>
+                    <button class="btn btn-danger" id="clearDataBtn">Clear All Data</button>
+                </div>
+                <div class="settings-section">
+                    <h3>About</h3>
+                    <p><strong>Version:</strong> 1.0.0 (MVP)</p>
+                    <p><strong>Storage Used:</strong> <span id="storageUsed">Calculating...</span></p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Loading...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        // Import modules
+        import { StorageManager } from './js/storage-manager.js';
+        import { SampleDataGenerator } from './js/sample-data.js';
+        import { ChartManager } from './js/chart-manager.js';
+        
+        // Make them available globally
+        window.StorageManager = StorageManager;
+        window.SampleDataGenerator = SampleDataGenerator;
+        window.ChartManager = ChartManager;
+    </script>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
