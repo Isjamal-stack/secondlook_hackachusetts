@@ -195,7 +195,7 @@ export class BluetoothManager {
             return `41 0D ${speed.toString(16).padStart(2, '0').toUpperCase()}`;
         }
         if (command === '0105') { // Coolant temp
-            const temp = 195; // Normal operating temp
+            const temp = 90; // Celsius; PID 05 encodes temperature as A - 40.
             const value = temp + 40;
             return `41 05 ${value.toString(16).padStart(2, '0').toUpperCase()}`;
         }
