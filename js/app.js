@@ -1034,7 +1034,7 @@ export function resetDemo() {
     demoText('why-it-matters', '—');
     demoText('what-to-do', '—');
     demoText('recommendation-next', 'Choose a scenario, then press Start.');
-    // recommendation-limitation element removed - no longer displaying limitations
+    demoText('recommendation-limitation', 'Simulated readings cannot tell us the condition of your car.');
     demoText('recommendation-evidence', 'Evidence will appear here as readings arrive.');
     demoText('finding-rule', 'Waiting for analysis.');
     demoText('finding-duration', 'Waiting for analysis.');
@@ -1206,17 +1206,17 @@ export function renderExplanation(explanation) {
     if (whatMatch) sections.what_to_do = whatMatch[1].trim();
     
     // Fill in the sections
-    demoText('recommendation-why', sections.summary || 'Analyzing vehicle data...');
-    demoText('likely-causes', sections.likely_causes || '—');
+    demoText('recommendation-why', sections.summary || explanation_text);
+    demoText('likely-causes', 'The cause cannot be determined from these readings.');
     demoText('why-it-matters', sections.why_it_matters || '—');
-    demoText('what-to-do', sections.what_to_do || '—');
+    demoText('what-to-do', demo.event.approved_next_step);
     
     // The overall status belongs to A's current event, never the AI title.
     // Approved guidance and limitations always come from the analysis event.
     demoText('recommendation-next', demo.event.approved_next_step);
     const limitations = [...demo.event.limitations];
     if (!limitations.join(' ').includes(explanation.limitation)) limitations.push(explanation.limitation);
-    // recommendation-limitation element removed - no longer displaying limitations
+    demoText('recommendation-limitation', [...new Set(limitations)].join(' '));
     demoText('explanation-source', demo.example ? 'Example explanation · Temporary preview' : explanation.explanation_source === 'ai' ? 'AI explanation' : 'Template explanation · Fallback');
     return true;
 }

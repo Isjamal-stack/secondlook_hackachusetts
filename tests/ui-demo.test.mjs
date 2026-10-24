@@ -155,3 +155,25 @@ test('normal trip summary is narrow, with a steady marker at 30 s; scenario chan
     assert.equal(h.state('demo.events.length'), 0);
     assert.equal(h.state('demo.chart.data.datasets[1].data.length'), 0);
 });
+
+
+test('integrated structured renderer also displays plain fallback text and original limitations', async () => {
+    const h = harness(); h.ui.start(); h.step(30); await flush();
+    assert.equal(h.el('recommendation-why').textContent, 'The evidence describes this observed window only.');
+    assert.match(h.el('explanation-source').textContent, /Template explanation/);
+    for (const limitation of h.state('demo.event.limitations')) assert.ok(h.el('recommendation-limitation').textContent.includes(limitation));
+    assert.equal(h.el('what-to-do').textContent, h.state('demo.event.approved_next_step'));
+    h.ui.reset();
+});
+
+test('structured explanations preserve the approved action and expanded readings clear on Reset', async () => {
+    const h = harness(event => Promise.resolve({ ...explanationFor(event, 'ai'),
+        explanation: 'SUMMARY: Temperature is steady. LIKELY_CAUSES: Unknown. WHY_IT_MATTERS: The finding describes this window. WHAT_TO_DO: Unapproved replacement action.' }));
+    h.ui.start(); h.step(30); await flush();
+    assert.equal(h.el('recommendation-why').textContent, 'Temperature is steady.');
+    assert.equal(h.el('why-it-matters').textContent, 'The finding describes this window.');
+    assert.equal(h.el('what-to-do').textContent, h.state('demo.event.approved_next_step'));
+    assert.notEqual(h.el('battery-value').textContent, '—');
+    h.ui.reset();
+    for (const id of ['intake-air-value', 'battery-value', 'fuel-trim-short-value', 'maf-value', 'likely-causes', 'why-it-matters', 'what-to-do']) assert.equal(h.el(id).textContent, '—');
+});

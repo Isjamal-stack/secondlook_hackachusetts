@@ -19,9 +19,9 @@ source venv/bin/activate
 ./start.sh
 ```
 
-Or run `python3 server/server.py` from the project folder. Open **http://localhost:3000/?demo=understand-5**.
+Or run `python3 server/server.py` from the project folder. Open **http://localhost:3000/?demo=sync-6**.
 
-Restart an already-running server to pick up these Python changes. Use this one server for the webpage and `/api/explain`. The old file server on port 8000 cannot provide explanations. If an old preview is still running, use port 3000.
+When you next launch the demo, use the command above to load the integrated code. The synchronization task did not restart any server. Use this one server for the webpage and `/api/explain`. The old file server on port 8000 cannot provide explanations. If an old preview is still running, use port 3000.
 
 Without credentials, the app uses clearly labeled template explanations. The app binds to this computer only, with debugging off. Server files, credentials, and repository metadata are blocked from frontend routes.
 
@@ -41,7 +41,7 @@ Do not commit or share the key. The server loads this file regardless of which f
 6. Open **Understand the terms**. Read **What the car reported** beside **What this means**, and check the AI/template source label. The existing grounding guard and prepared fallback remain active.
 7. Click **Replay** or **Reset**, or change scenarios during an explanation request. Old readings, finding markers/windows, and summary must clear. A late AI reply must not restore them.
 8. **Presentation scope:** Only Dashboard is available. No new pages or hardware features were added.
-9. **Fallback without editing credentials:** In another terminal, run `AI_PROVIDER=none PORT=3002 python3 server/server.py` and open `http://localhost:3002/?demo=understand-5`. Repeat a scenario and Reset. This does not change `server/.env`.
+9. **Fallback without editing credentials:** In another terminal, run `AI_PROVIDER=none PORT=3002 python3 server/server.py` and open `http://localhost:3002/?demo=sync-6`. Repeat a scenario and Reset. This does not change `server/.env`.
 
 Scenarios last 45 seconds and are time-compressed. Their thresholds are demo rules, not universal limits for real cars.
 
@@ -59,8 +59,14 @@ node --experimental-default-type=module --test tests/part-a.test.mjs tests/ui-de
 python3 -m unittest discover -s tests -p 'test_server.py'
 ```
 
-Use Node 22 or newer. All **34 tests pass**: 10 simulator/rule tests, 13 server tests, eight UI-harness tests, and three presentation-helper tests. These include the original 28 checks plus rule-description accuracy, timestamp-anchored markers, supporting windows across pauses, event-history summaries, and clearing on Reset/Replay/scenario changes. UI tests use stub DOM/Chart objects and do not verify browser layout.
+Use Node 22 or newer. All **36 tests pass** after integration: 10 simulator/rule tests, 13 server tests, ten UI-harness tests, and three presentation-helper tests. These include the original 28 checks plus rule-description accuracy, timestamp-anchored markers, supporting windows across pauses, event-history summaries, and clearing on Reset/Replay/scenario changes. UI tests use stub DOM/Chart objects and do not verify browser layout.
+
+## Synchronization with teammate changes
+
+Integrated teammate commit `193a533` by fast-forward, preserving the structured explanation layout and expanded simulated readings (intake temperature, battery voltage, fuel trim, and mass air flow). Fixed the integration regressions: restored the reviewed wording guard and simulation-aware prompt, restored visible limitations, and made the structured renderer show plain-text prepared explanations correctly. Approved actions remain owned by the analysis event; cause text does not invent a diagnosis. Two focused UI regressions cover fallback rendering and clearing the additional readings/sections.
+
+No credentials were changed or included in the synchronization commit, and no server was restarted. The integrated version passed all 36 documented automated tests. Live AI and visual browser checks were not rerun for this synchronization; the completed independent review below applies to the preceding presentation version.
 
 The prior live AI checks passed. Independent visual review passed for both scenarios, chart markers and supporting windows, expandable rule explanations, glossary, trip summaries, Pause/Resume, Replay, and Reset. All 34 tests were independently confirmed passing. Real hardware and offline/CDN failures remain untested. History remains hidden.
 
-Shared formats and UI connection functions are unchanged. No server AI/fallback or credential changes were made. See `DEMO_INTEGRATION.md` for rule configuration, marker matching, glossary sources, and summary ownership.
+Shared formats and UI connection functions are unchanged. The integration repair preserves the reviewed AI/fallback safeguards alongside the teammate’s structured layout. Credentials remain unchanged. See `DEMO_INTEGRATION.md` for rule configuration, marker matching, glossary sources, and summary ownership.
