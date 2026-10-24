@@ -95,7 +95,7 @@
             </div>
             <section class="demo-panel" aria-label="Simulation controls">
                 <strong class="simulation-label">Simulated vehicle data</strong>
-                <p id="demo-mode">Example preview · Six fixed readings, played one per second. No vehicle connection needed.</p>
+                <p id="demo-mode">Time-compressed simulation · 45-second scenarios. No vehicle connection needed.</p>
                 <div class="demo-controls">
                     <label for="demo-scenario">Choose a scenario
                         <select id="demo-scenario">
@@ -122,11 +122,11 @@
                     <div><dt>What we can’t tell</dt><dd id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</dd></div>
                 </dl>
                 <section class="recommendation-evidence" aria-labelledby="finding-title">
-                    <h4 id="finding-title">Why this was flagged</h4>
+                    <h4 id="finding-title">Rule evidence</h4>
                     <p class="finding-source">Rule-based finding · Supplied by the analysis module</p>
                     <dl class="finding-details">
                         <div><dt>Rule</dt><dd id="finding-rule">Waiting for analysis.</dd></div>
-                        <div><dt>Triggering readings</dt><dd id="recommendation-evidence">Evidence will appear here as readings arrive.</dd></div>
+                        <div><dt>Readings at the time of the finding</dt><dd id="recommendation-evidence">Evidence will appear here as readings arrive.</dd></div>
                         <div><dt>Observation duration</dt><dd id="finding-duration">Waiting for analysis.</dd></div>
                     </dl>
                 </section>
@@ -347,6 +347,6 @@
         window.SampleDataGenerator = SampleDataGenerator;
         window.ChartManager = ChartManager;
     </script>
-    <script src="js/app.js?v=secondlook-demo-2" type="module"></script>
+    <script src="js/app.js?v=secondlook-integrated-3" type="module"></script>
 </body>
 </html>

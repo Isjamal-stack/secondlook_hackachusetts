@@ -3,23 +3,22 @@ SecondLook Explanation Service
 Provides AI-powered explanations for vehicle diagnostic events
 """
 
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from flask import Flask, request, jsonify, send_from_directory, abort
 import os
 import time
-from datetime import datetime, timedelta
+from pathlib import Path
 from dotenv import load_dotenv
 from template_explanations import generate_template_explanation
 from ai_provider import generate_ai_explanation
 
 # Load environment variables
-load_dotenv()
+load_dotenv(Path(__file__).with_name('.env'))
 
 # Determine the frontend directory (one level up from server/)
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..')
+FRONTEND_DIR = Path(__file__).resolve().parent.parent
 
-app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='')
-CORS(app)
+# Only the explicit frontend allowlist below is public, never the repository.
+app = Flask(__name__, static_folder=None)
 
 # Configuration
 PORT = int(os.getenv('PORT', 3000))
@@ -44,7 +43,7 @@ def validate_analysis_event(event):
     """Validate analysis event structure"""
     errors = []
     
-    if not event:
+    if not isinstance(event, dict) or not event:
         errors.append('Analysis event is required')
         return {'valid': False, 'errors': errors}
     
@@ -104,7 +103,7 @@ def explain():
     start_time = time.time()
     
     try:
-        analysis_event = request.json
+        analysis_event = request.get_json(silent=True)
         
         # Validate request
         validation = validate_analysis_event(analysis_event)
@@ -193,14 +192,27 @@ def health():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
-    """Serve static frontend files"""
-    if path and os.path.exists(os.path.join(FRONTEND_DIR, path)):
-        return send_from_directory(FRONTEND_DIR, path)
-    return send_from_directory(FRONTEND_DIR, 'index.html')
+    """Serve frontend assets only; configuration and source-server files stay private."""
+    path = path or 'index.html'
+    parts = Path(path).parts
+    if any(part.startswith('.') for part in parts):
+        abort(404)
+    public_files = {'index.html', 'manifest.json', 'sw.js'}
+    public_assets = {
+        'js': {'.js'}, 'css': {'.css'}, 'workers': {'.js'},
+        'icons': {'.png', '.svg', '.ico'}
+    }
+    allowed = path in public_files or (
+        len(parts) > 1 and Path(path).suffix in public_assets.get(parts[0], set())
+    )
+    resolved = (FRONTEND_DIR / path).resolve()
+    if not allowed or FRONTEND_DIR not in resolved.parents:
+        abort(404)
+    return send_from_directory(str(FRONTEND_DIR), path)
 
 
 if __name__ == '__main__':
     print(f"[Server] SecondLook Explanation Service running on port {PORT}")
     print(f"[Server] AI Provider: {AI_PROVIDER if AI_PROVIDER else 'none (template mode only)'}")
     print(f"[Server] Request timeout: {REQUEST_TIMEOUT_MS}ms")
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    app.run(host='127.0.0.1', port=PORT, debug=False)

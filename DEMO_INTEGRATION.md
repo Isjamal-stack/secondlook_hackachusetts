@@ -1,5 +1,19 @@
 # Person C: demo preview and handoff
 
+## Integrated team demo
+
+The dashboard now installs A's `createSimulation` factory automatically. Start the combined app using `./start.sh` and open **http://localhost:3000/?demo=integrated**. See `STARTUP.md` for installation and AI setup. The old port-8000 file server does not serve `/api/explain`.
+
+Both scenarios run for 45 seconds. Normal warm-up produces stable evidence **90 → 90°C over 10 seconds** at second 30. Rising temperature produces **92 → 100°C over 10 seconds** at second 20. Evidence records the triggering window; live readings continue afterward. The interface calls this block **Rule evidence** and marks the demo as time-compressed.
+
+Shared formats and adapter functions below are unchanged. A's rules remain the source of urgency, evidence, and approved actions. B's explanation prompt now receives units, simulation context, actions, and limitations. Fallback wording describes the actual observed window. Templates are labeled honestly; live AI still requires locally configured credentials and a successful end-to-end check.
+
+Server routes allow frontend assets only; configuration and server files are blocked. Startup binds to localhost with debugging off. The default example configuration selects template mode.
+
+Verified locally after integration: A's 10 tests and 6 focused server tests pass. Both real simulator scenarios were checked in the browser against the template endpoint, including normal evidence, attention evidence, chart updates, pause/resume, and reset. No browser errors appeared. Server tests cover blocked private files, grounded templates, model-failure fallback, prompt context, and the mocked AI response contract. Live AI output is still unverified until credentials are configured locally.
+
+The sections below describe the original fixture preview and adapter contract. For the current startup workflow, follow `STARTUP.md`. The six-reading fixtures remain in the source for UI development but are no longer the default.
+
 Work is on `test`. No commit or push is needed to preview.
 
 ## Interface update: Why this was flagged

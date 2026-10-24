@@ -5,14 +5,14 @@ Fallback explanations when AI service is unavailable
 
 TEMPLATE_EXPLANATIONS = {
     'normal_warmup': {
-        'title': 'Engine is warming up normally',
-        'explanation': 'Your engine temperature is rising from a cold start, which is expected behavior. The coolant is circulating and gradually reaching its normal operating temperature.',
+        'title': 'Temperature is steady in this window',
+        'explanation': 'Coolant temperature stayed steady during the observed window and matched our demo’s stable-temperature rule. This does not establish the condition of the whole car.',
         'limitation': 'These readings show the warm-up process but cannot verify all cooling system components are functioning properly.'
     },
     
     'sustained_temperature_rise': {
         'title': 'Coolant temperature is continuing to rise',
-        'explanation': 'Your engine coolant temperature has been rising steadily and is now above the normal operating range. This could indicate an issue with the cooling system, such as low coolant level, a malfunctioning thermostat, or reduced airflow.',
+        'explanation': 'Coolant temperature rose during the observed window, triggering our demo’s temperature-rise rule. These readings do not identify the mechanical cause or establish a normal temperature limit for your car.',
         'limitation': 'These readings do not identify the specific failed component or root cause.'
     },
     
@@ -28,6 +28,16 @@ TEMPLATE_EXPLANATIONS = {
         'limitation': 'These readings provide a snapshot and cannot guarantee all vehicle systems are functioning correctly.'
     },
     
+    'insufficient_data': {
+        'title': 'Collecting enough readings',
+        'explanation': 'No current rule matches yet. More readings will help show whether temperature settles or continues rising.',
+        'limitation': 'An unmatched or incomplete reading window cannot establish vehicle condition.'
+    },
+    'data_unavailable': {
+        'title': 'Recent readings are unavailable',
+        'explanation': 'The latest readings are missing, outdated, or invalid. We need complete, recent readings before interpreting the trend.',
+        'limitation': 'Unavailable readings cannot establish vehicle condition.'
+    },
     'unknown': {
         'title': 'Unable to determine condition',
         'explanation': 'There is insufficient or stale data to make an assessment of the current vehicle condition.',
@@ -53,13 +63,21 @@ def generate_template_explanation(analysis_event):
     
     # Get base template
     template = TEMPLATE_EXPLANATIONS.get(condition, TEMPLATE_EXPLANATIONS['unknown'])
+    explanation = template['explanation']
+    evidence = next((item for item in analysis_event.get('evidence', [])
+                     if item.get('metric') == 'coolant_c'), None)
+    if condition in ('normal_warmup', 'sustained_temperature_rise') and evidence:
+        start, end, duration = (evidence.get(key) for key in ('start_value', 'end_value', 'duration_s'))
+        if all(isinstance(value, (int, float)) for value in (start, end, duration)):
+            observation = f'Coolant temperature went from {start:g}°C to {end:g}°C over {duration:g} seconds.'
+            explanation = observation + ' ' + explanation
     
     # Build explanation object
     return {
         'event_id': event_id,
         'title': template['title'],
-        'explanation': template['explanation'],
+        'explanation': explanation,
         'next_step': approved_next_step or 'Continue monitoring vehicle readings and consult your vehicle\'s manual for warning light guidance.',
-        'limitation': limitations[0] if limitations else template['limitation'],
+        'limitation': ' '.join(limitations) if limitations else template['limitation'],
         'explanation_source': 'template'
     }

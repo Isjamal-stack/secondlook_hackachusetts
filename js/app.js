@@ -4,6 +4,7 @@
  */
 
 import { createExamplePreview } from './demo-examples.js';
+import { createSimulation } from './simulation.js';
 
 import { StorageManager } from './storage-manager.js';
 import { SampleDataGenerator } from './sample-data.js';
@@ -29,6 +30,7 @@ const app = {
  */
 document.addEventListener('DOMContentLoaded', async () => {
     initializeDemo(); // Independent of Bluetooth, IndexedDB, and the legacy worker.
+    configureDemo({ createSimulation });
     console.log('[App] Initializing...');
     
     try {
@@ -1020,6 +1022,7 @@ function initializeDemo() {
 
 function setDemoStatus(status, message) {
     demo.status = status;
+    document.querySelector('#connectionStatus .status-text').textContent = 'Simulation mode';
     demoText('demo-status', message);
     demoElement('demo-start').disabled = status === 'running';
     demoElement('demo-start').textContent = status === 'paused' ? 'Resume' : status === 'complete' ? 'Replay' : 'Start';
@@ -1108,7 +1111,9 @@ const evidenceLabels = { coolant_c: 'Coolant temperature', rpm: 'Engine speed', 
 const metricLabel = metric => evidenceLabels[metric] || metric.replaceAll('_', ' ');
 const conditionLabels = {
     sustained_temperature_rise: 'Sustained temperature rise',
-    normal_warmup: 'Normal warm-up'
+    normal_warmup: 'Stable temperature',
+    insufficient_data: 'Collecting enough readings',
+    data_unavailable: 'Readings unavailable'
 };
 function evidenceText(event, includeDuration = true) {
     return event.evidence.map(item => `${metricLabel(item.metric)}: ${numberText(item.start_value)} → ${numberText(item.end_value)} ${evidenceUnits[item.metric] || ''}${includeDuration ? ` over ${numberText(item.duration_s)} s` : ''}.`).join(' ');
@@ -1133,7 +1138,10 @@ export function renderAnalysis(event, explanation = null, { example = false } = 
         `${metricLabel(item.metric)}: ${numberText(item.duration_s)} s`).join(' · ') || 'Observation duration not supplied.');
     demoText('recommendation-observation', evidenceText(event) || 'Waiting for enough readings to describe a pattern.');
     // Honest, neutral UI fallback; the analysis layer owns the condition and action.
-    renderExplanation({ event_id: event.event_id, title: 'A reading pattern needs your review',
+    renderExplanation({ event_id: event.event_id,
+        title: event.condition === 'insufficient_data' ? 'Collecting enough readings'
+            : event.condition === 'normal_warmup' ? 'Temperature is steady in this window'
+            : 'A reading pattern needs your review',
         explanation: 'The analysis is shown in the evidence below. These readings alone cannot establish the vehicle’s condition.',
         next_step: event.approved_next_step, limitation: event.limitations.join(' ') || 'The cause cannot be determined from these readings.', explanation_source: 'template' });
     if (explanation && renderExplanation(explanation)) return true;
@@ -1149,7 +1157,9 @@ export function renderExplanation(explanation) {
     demoText('recommendation-why', explanation.explanation);
     // Approved guidance and limitations always come from the analysis event.
     demoText('recommendation-next', demo.event.approved_next_step);
-    demoText('recommendation-limitation', [...new Set([...demo.event.limitations, explanation.limitation])].join(' '));
+    const limitations = [...demo.event.limitations];
+    if (!limitations.join(' ').includes(explanation.limitation)) limitations.push(explanation.limitation);
+    demoText('recommendation-limitation', [...new Set(limitations)].join(' '));
     demoText('explanation-source', demo.example ? 'Example explanation · Temporary preview' : explanation.explanation_source === 'ai' ? 'AI explanation' : 'Template explanation · Fallback');
     return true;
 }
@@ -1182,7 +1192,7 @@ export function configureDemo({ createSimulation, explain } = {}) {
     if (explain !== undefined) demo.adapters.explain = explain;
     demoText('demo-mode', demo.adapters.createSimulation === createExamplePreview
         ? 'Example preview · Six fixed readings, played one per second. No vehicle connection needed.'
-        : 'Team simulation connected · No vehicle connection needed.');
+        : 'Time-compressed simulation · 45-second scenarios. No vehicle connection needed.');
 }
 
 window.secondLookUI = { renderReading, renderAnalysis, renderExplanation, configure: configureDemo,

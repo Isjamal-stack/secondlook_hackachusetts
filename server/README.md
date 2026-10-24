@@ -1,126 +1,27 @@
-# SecondLook Explanation Service
+# SecondLook explanation service
 
-## Person B Deliverable
+Start here: **[../STARTUP.md](../STARTUP.md)** contains the team's current install, startup, and demo checks.
 
-This service provides AI-powered explanations for vehicle diagnostic events.
+The Flask service serves the frontend and `POST /api/explain` together at **http://localhost:3000**. Use `python3 server/server.py` from the project root or `./start.sh`. Do not use the old port-8000 file server for the integrated demo.
 
-## Quick Start
+## Configuration
 
-### 1. Install Dependencies
-```bash
-cd server
-pip3 install -r requirements.txt
+Copy `.env.example` to `.env` in this directory. `AI_PROVIDER=none` runs the template fallback without a key. Set `AI_PROVIDER=openai` and your local `OPENAI_API_KEY` to enable the existing model adapter. Restart after changing configuration. Never commit the key.
+
+The server binds to localhost with debugging off. Only the frontend entry page and allowed assets are public. Server source, configuration files, and repository metadata return 404.
+
+## API contract
+
+`POST /api/explain` accepts the Analysis event from `PROJECT_BRIEF.md` and returns the Explanation object directly. `event_id` links an explanation to the active finding. The supplied action and limitations are preserved. Explanations describe the actual evidence window using explicit units and simulation context.
+
+`GET /api/health` reports configuration. Its `ai_available` flag checks whether a key is present; it does not prove a real model call succeeded. Verify an accepted response labeled **AI explanation** in the demo. API failure returns a clearly labeled template.
+
+Requests use a five-second configured timeout and no automatic model retries so fallback can appear within the UI's six-second timeout. The output contract is validated; generated prose is not automatically fact-checked.
+
+Run focused tests from the project root:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_server.py'
 ```
 
-### 2. Configure Environment (Required for AI)
-```bash
-cd server
-cp .env.example .env
-# Edit .env and add your OpenAI API key:
-# AI_PROVIDER=openai
-# OPENAI_API_KEY=sk-your-key-here
-# OPENAI_MODEL=gpt-4o-mini
-```
-
-### 3. Start Server (serves both frontend and API)
-```bash
-python3 server.py
-```
-
-Everything runs on: **http://localhost:3000**
-
-- Frontend: http://localhost:3000/
-- API: http://localhost:3000/api/explain
-- Health: http://localhost:3000/api/health
-
-**Note:** Without an API key, the server runs in template mode (still works!)
-
-## Features
-
-- ✅ Template-based explanations (fallback mode)
-- ✅ OpenAI gpt-4o-mini integration
-- ✅ Request validation
-- ✅ Response validation  
-- ✅ Event ID caching to prevent duplicates
-- ✅ Timeout handling (5 seconds)
-- ✅ Honest fallback on AI failure
-- ✅ Static file serving (same origin)
-
-## API Endpoints
-
-### POST /api/explain
-Generate an explanation for a diagnostic event.
-
-**Request Body:**
-```json
-{
-  "event_id": "run-1-temperature-rise-1",
-  "scenario_id": "temperature-rise",
-  "condition": "sustained_temperature_rise",
-  "urgency": "attention",
-  "observed_at_ms": 1700000000000,
-  "evidence": [
-    {
-      "metric": "coolant_c",
-      "start_value": 92,
-      "end_value": 108,
-      "duration_s": 45
-    }
-  ],
-  "limitations": ["Exact mechanical cause cannot be determined from these readings."],
-  "approved_next_step": "Stop driving and check coolant level when safe to do so."
-}
-```
-
-**Response:**
-```json
-{
-  "event_id": "run-1-temperature-rise-1",
-  "title": "Coolant temperature is continuing to rise",
-  "explanation": "Your engine coolant temperature has been rising steadily...",
-  "next_step": "Stop driving and check coolant level when safe to do so.",
-  "limitation": "These readings do not identify the specific failed component.",
-  "explanation_source": "template"
-}
-```
-
-### GET /api/health
-Check service status.
-
-## Features
-
-- ✅ Template-based explanations (fallback mode)
-- ✅ Request validation
-- ✅ Response validation
-- ✅ Event ID caching to prevent duplicates
-- ✅ Timeout handling
-- ⏳ AI model integration (next step)
-
-## Template Mode
-
-The service works immediately in template mode without AI credentials. This provides:
-- Reliable fallback explanations
-- Consistent response times
-- Honest labeling (`explanation_source: "template"`)
-
-## Environment Variables
-
-See `.env.example` for configuration options.
-
-## Testing
-
-### Test with curl (template mode - no API key needed):
-```bash
-curl -X POST http://localhost:3000/api/explain \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event_id": "test-1",
-    "condition": "sustained_temperature_rise",
-    "urgency": "attention",
-    "approved_next_step": "Check coolant level.",
-    "limitations": ["Cannot determine exact cause."]
-  }'
-```
-
-### Test with OpenAI (requires API key in .env):
-Set `AI_PROVIDER=openai` and `OPENAI_API_KEY=sk-...` in `.env`, restart server, then run the same curl command. The response will have `"explanation_source": "ai"` with a natural language explanation generated by gpt-4o-mini.
+These tests mock the model and require no real credentials. Live AI still needs a manual check.
