@@ -21,7 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/styles.css?v=secondlook-demo-1">
+    <link rel="stylesheet" href="css/styles.css?v=secondlook-demo-2">
 </head>
 <body>
     <!-- App Header -->
@@ -121,7 +121,15 @@
                     <div><dt>What to do next</dt><dd id="recommendation-next">Choose a scenario, then press Start.</dd></div>
                     <div><dt>What we can’t tell</dt><dd id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</dd></div>
                 </dl>
-                <p class="recommendation-evidence" id="recommendation-evidence">Evidence will appear here as readings arrive.</p>
+                <section class="recommendation-evidence" aria-labelledby="finding-title">
+                    <h4 id="finding-title">Why this was flagged</h4>
+                    <p class="finding-source">Rule-based finding · Supplied by the analysis module</p>
+                    <dl class="finding-details">
+                        <div><dt>Rule</dt><dd id="finding-rule">Waiting for analysis.</dd></div>
+                        <div><dt>Triggering readings</dt><dd id="recommendation-evidence">Evidence will appear here as readings arrive.</dd></div>
+                        <div><dt>Observation duration</dt><dd id="finding-duration">Waiting for analysis.</dd></div>
+                    </dl>
+                </section>
             </section>
             <div class="dashboard-grid demo-readings" aria-label="Latest vehicle readings">
                 <div class="metric-card"><div class="metric-label">Engine speed</div><div class="metric-value" id="rpm-value">—</div><div class="metric-unit">RPM</div></div>
@@ -339,6 +347,6 @@
         window.SampleDataGenerator = SampleDataGenerator;
         window.ChartManager = ChartManager;
     </script>
-    <script src="js/app.js?v=secondlook-demo-1" type="module"></script>
+    <script src="js/app.js?v=secondlook-demo-2" type="module"></script>
 </body>
 </html>
