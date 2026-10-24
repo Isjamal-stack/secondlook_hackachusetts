@@ -3,6 +3,8 @@
  * Handles app initialization, routing, and UI interactions
  */
 
+import { createExamplePreview } from './demo-examples.js';
+
 import { StorageManager } from './storage-manager.js';
 import { SampleDataGenerator } from './sample-data.js';
 import { ChartManager } from './chart-manager.js';
@@ -26,6 +28,7 @@ const app = {
  * Initialize application
  */
 document.addEventListener('DOMContentLoaded', async () => {
+    initializeDemo(); // Independent of Bluetooth, IndexedDB, and the legacy worker.
     console.log('[App] Initializing...');
     
     try {
@@ -54,7 +57,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         initializeDataWorker();
         
         // Register service worker
-        registerServiceWorker();
+        // Demo uses fresh assets; leave the existing worker file under shared ownership.
+        // Do not register the cache-first worker during the hackathon preview.
         
         // Setup install prompt
         setupInstallPrompt();
@@ -869,12 +873,10 @@ function hideLoading() {
  * Update dashboard metrics (called from worker)
  */
 function updateDashboardMetrics(data) {
-    document.getElementById('rpm-value').textContent = data.rpm || 0;
-    document.getElementById('speed-value').textContent = data.speed || 0;
-    document.getElementById('coolant-value').textContent = data.coolant_temp || 0;
-    document.getElementById('load-value').textContent = data.engine_load || 0;
-    document.getElementById('fuel-value').textContent = data.fuel_level || 0;
-    document.getElementById('throttle-value').textContent = data.throttle_pos || 0;
+    // Legacy readings use different units; never mix them into the demo dashboard.
+    // Normalized readings enter through secondLookUI.renderReading().
+    return;
+
 }
 
 // Export for use in other modules
@@ -980,3 +982,196 @@ async function handleMetricChange(event) {
     const dateRange = document.getElementById('dateRange').value;
     await updateHistoryChart(metric, dateRange);
 }
+
+// Person C integration surface. See DEMO_INTEGRATION.md for the adapter contract.
+const demo = {
+    run: 0, status: 'ready', controller: null, chart: null, reading: null, event: null,
+    example: false, request: null,
+    adapters: { createSimulation: createExamplePreview, explain: null }
+};
+const demoElement = id => document.getElementById(id);
+const demoText = (id, value) => { demoElement(id).textContent = value; };
+const numberText = value => Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—';
+
+function initializeDemo() {
+    demoElement('demo-start').addEventListener('click', startDemo);
+    demoElement('demo-pause').addEventListener('click', pauseDemo);
+    demoElement('demo-reset').addEventListener('click', resetDemo);
+    demoElement('demo-scenario').addEventListener('change', resetDemo);
+    if (typeof Chart !== 'undefined') {
+        demo.chart = new Chart(demoElement('coolant-trend'), {
+            type: 'line',
+            data: { datasets: [{ label: 'Coolant temperature (°C)', data: [], borderColor: '#1976d2',
+                borderWidth: 2, pointRadius: 3, tension: 0, spanGaps: false }] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: {
+                    label: item => `${numberText(item.parsed.y)} °C`
+                } } },
+                scales: {
+                    x: { type: 'linear', title: { display: true, text: 'Elapsed time (seconds)' }, ticks: { precision: 0 } },
+                    y: { title: { display: true, text: 'Coolant temperature (°C)' } }
+                }
+            }
+        });
+    } else {
+        demoText('chart-status', 'Chart library could not load. Connect to the internet and reload; readings still work.');
+    }
+}
+
+function setDemoStatus(status, message) {
+    demo.status = status;
+    demoText('demo-status', message);
+    demoElement('demo-start').disabled = status === 'running';
+    demoElement('demo-start').textContent = status === 'paused' ? 'Resume' : status === 'complete' ? 'Replay' : 'Start';
+    demoElement('demo-pause').disabled = status !== 'running';
+}
+
+export function resetDemo() {
+    demo.run++; // Invalidates callbacks and in-flight explanations from the previous run.
+    demo.request?.abort();
+    demo.request = null;
+    demo.controller?.pause();
+    demo.controller?.reset?.();
+    demo.controller = null;
+    demo.reading = null;
+    demo.event = null;
+    demo.example = false;
+    for (const id of ['rpm-value', 'speed-value', 'coolant-value', 'load-value']) demoText(id, '—');
+    if (demo.chart) { demo.chart.data.datasets[0].data = []; demo.chart.update('none'); }
+    if (demo.chart) demoText('chart-status', 'Waiting for readings.');
+    demoElement('recommendation-card').removeAttribute('data-urgency');
+    demoText('recommendation-urgency', 'Waiting for data');
+    demoText('explanation-source', 'No explanation yet');
+    demoText('recommendation-title', 'Start a simulated drive');
+    demoText('recommendation-observation', 'No readings yet.');
+    demoText('recommendation-why', 'A series of readings helps show how temperature changes over time.');
+    demoText('recommendation-next', 'Choose a scenario, then press Start.');
+    demoText('recommendation-limitation', 'Simulated readings cannot tell us the condition of your car.');
+    demoText('recommendation-evidence', 'Evidence will appear here as readings arrive.');
+    setDemoStatus('ready', 'Ready. Choose a scenario and press Start.');
+}
+
+export function startDemo() {
+    if (demo.status === 'running') return;
+    if (demo.status === 'complete') resetDemo();
+    if (!demo.controller) {
+        const run = demo.run;
+        const current = callback => (...args) => { if (run === demo.run) return callback(...args); };
+        try {
+            demo.controller = demo.adapters.createSimulation({
+                scenario_id: demoElement('demo-scenario').value,
+                run_id: `run-${run}`,
+                onReading: current(renderReading),
+                onAnalysis: current(renderAnalysis),
+                onComplete: current(() => setDemoStatus('complete', 'Run complete. Replay or choose another scenario.'))
+            });
+        } catch (error) {
+            setDemoStatus('ready', `Could not start the data source: ${error.message}`);
+            return;
+        }
+    }
+    setDemoStatus('running', 'Running · Simulated vehicle data');
+    demo.controller.start();
+}
+
+export function pauseDemo() {
+    demo.controller?.pause();
+    setDemoStatus('paused', 'Paused. Readings and elapsed time stay here until you resume.');
+}
+
+/** Shared Reading contract: Celsius, km/h, RPM, percent. Null stays missing. */
+export function renderReading(reading) {
+    if (reading.scenario_id !== demoElement('demo-scenario').value || reading.source !== 'simulation' ||
+        !Number.isFinite(reading.elapsed_s) || !Number.isFinite(reading.timestamp_ms)) return false;
+    demo.reading = reading;
+    for (const [id, metric] of [['rpm-value', 'rpm'], ['speed-value', 'speed_kmh'], ['coolant-value', 'coolant_c'], ['load-value', 'engine_load_pct']]) {
+        demoText(id, numberText(reading[metric]));
+    }
+    if (demo.chart) {
+        demo.chart.data.datasets[0].data.push({ x: reading.elapsed_s, y: Number.isFinite(reading.coolant_c) ? reading.coolant_c : null });
+        demo.chart.update('none');
+        demoText('chart-status', `Latest: ${numberText(reading.coolant_c)} °C at ${numberText(reading.elapsed_s)} s. Missing readings appear as gaps.`);
+    }
+    if (!demo.event) {
+        demoText('recommendation-title', 'Collecting readings');
+        demoText('recommendation-observation', 'The readings are arriving. Waiting for an analysis of the pattern.');
+        demoText('recommendation-next', 'Watch the temperature chart as the run continues.');
+        demoText('recommendation-urgency', 'Waiting for analysis');
+    }
+    return true;
+}
+
+const evidenceUnits = { coolant_c: '°C', rpm: 'RPM', speed_kmh: 'km/h', engine_load_pct: '%' };
+function evidenceText(event) {
+    return event.evidence.map(item => `${item.metric === 'coolant_c' ? 'Coolant temperature' : item.metric.replaceAll('_', ' ')}: ${numberText(item.start_value)} → ${numberText(item.end_value)} ${evidenceUnits[item.metric] || ''} over ${numberText(item.duration_s)} s.`).join(' ');
+}
+
+/** Render the analysis immediately. Explanation requests never block the readings. */
+export function renderAnalysis(event, explanation = null, { example = false } = {}) {
+    if (!event || typeof event.event_id !== 'string' || event.scenario_id !== demoElement('demo-scenario').value ||
+        !Array.isArray(event.evidence) || !Array.isArray(event.limitations) ||
+        !['normal', 'attention', 'urgent', 'unknown'].includes(event.urgency) ||
+        typeof event.approved_next_step !== 'string') return false;
+    if (demo.event?.event_id === event.event_id) return explanation ? renderExplanation(explanation) : true;
+    demo.request?.abort();
+    demo.event = event;
+    demo.example = example;
+    demoElement('recommendation-card').dataset.urgency = event.urgency;
+    demoText('recommendation-urgency', { normal: 'Normal pattern', attention: 'Needs attention', urgent: 'Urgent', unknown: 'Not enough information' }[event.urgency]);
+    demoText('recommendation-evidence', evidenceText(event) || 'No numeric evidence supplied.');
+    demoText('recommendation-observation', evidenceText(event) || 'Waiting for enough readings to describe a pattern.');
+    // Honest, neutral UI fallback; the analysis layer owns the condition and action.
+    renderExplanation({ event_id: event.event_id, title: 'A reading pattern needs your review',
+        explanation: 'The analysis is shown in the evidence below. These readings alone cannot establish the vehicle’s condition.',
+        next_step: event.approved_next_step, limitation: event.limitations.join(' ') || 'The cause cannot be determined from these readings.', explanation_source: 'template' });
+    if (explanation && renderExplanation(explanation)) return true;
+    if (!example) void requestExplanation(event);
+    return true;
+}
+
+export function renderExplanation(explanation) {
+    if (!demo.event || explanation?.event_id !== demo.event.event_id ||
+        !['ai', 'template'].includes(explanation.explanation_source) ||
+        !['title', 'explanation', 'next_step', 'limitation'].every(key => typeof explanation[key] === 'string' && explanation[key].trim())) return false;
+    demoText('recommendation-title', explanation.title);
+    demoText('recommendation-why', explanation.explanation);
+    // Approved guidance and limitations always come from the analysis event.
+    demoText('recommendation-next', demo.event.approved_next_step);
+    demoText('recommendation-limitation', [...new Set([...demo.event.limitations, explanation.limitation])].join(' '));
+    demoText('explanation-source', demo.example ? 'Example explanation · Temporary preview' : explanation.explanation_source === 'ai' ? 'AI explanation' : 'Template explanation · Fallback');
+    return true;
+}
+
+async function requestExplanation(event) {
+    const run = demo.run;
+    const request = new AbortController();
+    demo.request = request;
+    const timeout = setTimeout(() => request.abort(), 6000);
+    try {
+        const explanation = demo.adapters.explain
+            ? await demo.adapters.explain(event, { signal: request.signal })
+            : await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(event), signal: request.signal }).then(response => {
+                if (!response.ok) throw new Error('Explanation unavailable');
+                return response.json();
+            });
+        if (!request.signal.aborted && run === demo.run && event.event_id === demo.event?.event_id) renderExplanation(explanation);
+    } catch {
+        // The labeled template remains visible when the endpoint is unavailable.
+    } finally {
+        clearTimeout(timeout);
+        if (demo.request === request) demo.request = null;
+    }
+}
+
+export function configureDemo({ createSimulation, explain } = {}) {
+    resetDemo();
+    if (createSimulation) demo.adapters.createSimulation = createSimulation;
+    if (explain !== undefined) demo.adapters.explain = explain;
+    demoText('demo-mode', demo.adapters.createSimulation === createExamplePreview
+        ? 'Example preview · Six fixed readings, played one per second. No vehicle connection needed.'
+        : 'Team simulation connected · No vehicle connection needed.');
+}
+
+window.secondLookUI = { renderReading, renderAnalysis, renderExplanation, configure: configureDemo,
+    start: startDemo, pause: pauseDemo, reset: resetDemo };

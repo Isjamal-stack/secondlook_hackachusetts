@@ -721,3 +721,40 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* Hackathon simulation dashboard; existing views keep their styling. */
+.demo-panel, .recommendation-card {
+    padding: 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-color);
+}
+.simulation-label { display: inline-block; color: #12589c; margin-bottom: 6px; }
+.demo-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin: 18px 0 12px; }
+.demo-controls label { display: grid; gap: 6px; font-weight: 600; }
+.demo-controls select { padding: 10px; min-height: 42px; border: 1px solid #919191; border-radius: 4px; background: white; font: inherit; color: inherit; }
+.demo-controls .btn { min-height: 42px; }
+.demo-controls button:disabled { opacity: .5; cursor: default; }
+.demo-controls :focus-visible { outline: 3px solid #1976d2; outline-offset: 3px; }
+#demo-status, #chart-status { margin-top: 10px; color: #4b4b4b; }
+.recommendation-card { border-left: 5px solid #74808b; }
+.recommendation-card[data-urgency="normal"] { border-left-color: #2e7d32; }
+.recommendation-card[data-urgency="attention"] { border-left-color: #ac6500; }
+.recommendation-card[data-urgency="urgent"] { border-left-color: #c62828; }
+.recommendation-heading { display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; font-size: 13px; color: #4b4b4b; margin-bottom: 10px; }
+#recommendation-urgency { font-weight: 700; }
+.recommendation-card h3 { font-size: 22px; margin-bottom: 18px; }
+.recommendation-details { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+.recommendation-details dt { font-weight: 700; margin-bottom: 4px; }
+.recommendation-details dd { margin: 0; color: #424242; }
+.recommendation-evidence { border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 14px; font-size: 14px; }
+.demo-readings { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 20px; }
+.demo-readings .metric-label { color: #535353; }
+.demo-chart { height: 240px; margin-top: 16px; }
+@media (max-width: 700px) {
+    .demo-readings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .recommendation-details { grid-template-columns: 1fr; }
+    .demo-panel, .recommendation-card { padding: 18px; }
+    .demo-controls label { width: 100%; }
+}

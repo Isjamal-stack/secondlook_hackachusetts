@@ -21,7 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css?v=secondlook-demo-1">
 </head>
 <body>
     <!-- App Header -->
@@ -90,44 +90,51 @@
         <!-- Dashboard View -->
         <div class="view active" id="dashboard-view">
             <div class="view-header">
-                <h2>Dashboard</h2>
-                <p class="view-subtitle">Real-time vehicle metrics</p>
+                <h2>Understand your drive</h2>
+                <p class="view-subtitle">See what the readings mean and what to do next.</p>
             </div>
-            <div class="dashboard-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Engine RPM</div>
-                    <div class="metric-value" id="rpm-value">0</div>
-                    <div class="metric-unit">RPM</div>
+            <section class="demo-panel" aria-label="Simulation controls">
+                <strong class="simulation-label">Simulated vehicle data</strong>
+                <p id="demo-mode">Example preview · Six fixed readings, played one per second. No vehicle connection needed.</p>
+                <div class="demo-controls">
+                    <label for="demo-scenario">Choose a scenario
+                        <select id="demo-scenario">
+                            <option value="normal-warmup">Normal warm-up</option>
+                            <option value="temperature-rise">Rising engine temperature</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-primary" id="demo-start">Start</button>
+                    <button class="btn btn-secondary" id="demo-pause" disabled>Pause</button>
+                    <button class="btn btn-secondary" id="demo-reset">Reset</button>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-label">Speed</div>
-                    <div class="metric-value" id="speed-value">0</div>
-                    <div class="metric-unit">MPH</div>
+                <p id="demo-status" role="status">Ready. Choose a scenario and press Start.</p>
+            </section>
+            <section class="recommendation-card" id="recommendation-card" aria-labelledby="recommendation-title" aria-live="polite">
+                <div class="recommendation-heading">
+                    <span id="recommendation-urgency">Waiting for data</span>
+                    <span id="explanation-source">No explanation yet</span>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-label">Coolant Temp</div>
-                    <div class="metric-value" id="coolant-value">0</div>
-                    <div class="metric-unit">°F</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Engine Load</div>
-                    <div class="metric-value" id="load-value">0</div>
-                    <div class="metric-unit">%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Fuel Level</div>
-                    <div class="metric-value" id="fuel-value">0</div>
-                    <div class="metric-unit">%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Throttle</div>
-                    <div class="metric-value" id="throttle-value">0</div>
-                    <div class="metric-unit">%</div>
-                </div>
+                <h3 id="recommendation-title">Start a simulated drive</h3>
+                <dl class="recommendation-details">
+                    <div><dt>What we noticed</dt><dd id="recommendation-observation">No readings yet.</dd></div>
+                    <div><dt>Why it matters</dt><dd id="recommendation-why">A series of readings helps show how temperature changes over time.</dd></div>
+                    <div><dt>What to do next</dt><dd id="recommendation-next">Choose a scenario, then press Start.</dd></div>
+                    <div><dt>What we can’t tell</dt><dd id="recommendation-limitation">Simulated readings cannot tell us the condition of your car.</dd></div>
+                </dl>
+                <p class="recommendation-evidence" id="recommendation-evidence">Evidence will appear here as readings arrive.</p>
+            </section>
+            <div class="dashboard-grid demo-readings" aria-label="Latest vehicle readings">
+                <div class="metric-card"><div class="metric-label">Engine speed</div><div class="metric-value" id="rpm-value">—</div><div class="metric-unit">RPM</div></div>
+                <div class="metric-card"><div class="metric-label">Vehicle speed</div><div class="metric-value" id="speed-value">—</div><div class="metric-unit">km/h</div></div>
+                <div class="metric-card"><div class="metric-label">Coolant temperature</div><div class="metric-value" id="coolant-value">—</div><div class="metric-unit">°C</div></div>
+                <div class="metric-card"><div class="metric-label">Engine load</div><div class="metric-value" id="load-value">—</div><div class="metric-unit">%</div></div>
             </div>
-            <div class="status-message">
-                <p>Connect to your ELM327 device or load sample data to begin monitoring.</p>
-            </div>
+            <section class="demo-panel" aria-labelledby="coolant-chart-title">
+                <h3 id="coolant-chart-title">Coolant temperature over time</h3>
+                <p>Coolant carries heat away from the engine. This chart shows this run only.</p>
+                <div class="demo-chart"><canvas id="coolant-trend" role="img" aria-label="Coolant temperature in degrees Celsius by elapsed seconds"></canvas></div>
+                <p id="chart-status">Waiting for readings.</p>
+            </section>
         </div>
 
         <!-- Connect View -->
@@ -332,6 +339,6 @@
         window.SampleDataGenerator = SampleDataGenerator;
         window.ChartManager = ChartManager;
     </script>
-    <script src="js/app.js" type="module"></script>
+    <script src="js/app.js?v=secondlook-demo-1" type="module"></script>
 </body>
 </html>
