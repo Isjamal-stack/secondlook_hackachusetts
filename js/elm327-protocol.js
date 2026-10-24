@@ -1,64 +1,315 @@
 /**
  * ELM327 Protocol Module
  * Handles ELM327 AT commands and OBD-II PID encoding/decoding
- * 
- * This module will be fully implemented in Task 4
  */
 
 export class ELM327Protocol {
     constructor() {
         this.protocolReady = false;
         this.commandQueue = [];
+        this.isProcessing = false;
+        
+        // Supported PIDs and their decoders
+        this.pidDecoders = {
+            '0C': this.decodeRPM.bind(this),           // Engine RPM
+            '0D': this.decodeSpeed.bind(this),         // Vehicle Speed
+            '05': this.decodeCoolantTemp.bind(this),   // Coolant Temperature
+            '04': this.decodeEngineLoad.bind(this),    // Engine Load
+            '2F': this.decodeFuelLevel.bind(this),     // Fuel Level
+            '11': this.decodeThrottlePos.bind(this),   // Throttle Position
+            '0F': this.decodeIntakeTemp.bind(this),    // Intake Air Temperature
+            '10': this.decodeMAF.bind(this)            // Mass Air Flow
+        };
     }
     
     /**
      * Initialize ELM327 device
      */
-    async initialize() {
-        // TODO: Implement in Task 4
-        // Send ATZ, ATE0, ATSP0, 0100 sequence
-        throw new Error('Not yet implemented');
+    async initialize(sendCommandFn) {
+        console.log('[ELM327Protocol] Starting initialization...');
+        this.sendCommandFn = sendCommandFn;
+        
+        try {
+            // Step 1: Reset
+            let response = await this.sendCommand('ATZ');
+            console.log('[ELM327Protocol] Reset response:', response);
+            
+            if (!response.includes('ELM327')) {
+                throw new Error('Device did not respond with ELM327 identifier');
+            }
+            
+            // Wait a bit after reset
+            await this.delay(1000);
+            
+            // Step 2: Echo off
+            response = await this.sendCommand('ATE0');
+            console.log('[ELM327Protocol] Echo off response:', response);
+            
+            // Step 3: Line feeds off
+            response = await this.sendCommand('ATL0');
+            console.log('[ELM327Protocol] Line feeds off response:', response);
+            
+            // Step 4: Headers off
+            response = await this.sendCommand('ATH0');
+            console.log('[ELM327Protocol] Headers off response:', response);
+            
+            // Step 5: Set protocol to auto
+            response = await this.sendCommand('ATSP0');
+            console.log('[ELM327Protocol] Set protocol response:', response);
+            
+            // Step 6: Test with supported PIDs - wait for protocol negotiation
+            console.log('[ELM327Protocol] Testing protocol with 0100...');
+            let attempts = 0;
+            while (attempts < 10) {
+                response = await this.sendCommand('0100');
+                console.log(`[ELM327Protocol] 0100 response (attempt ${attempts + 1}):`, response);
+                
+                if (response.includes('SEARCHING')) {
+                    console.log('[ELM327Protocol] Protocol searching, waiting...');
+                    await this.delay(500);
+                    attempts++;
+                } else if (response.includes('41 00')) {
+                    console.log('[ELM327Protocol] Protocol negotiation complete!');
+                    this.protocolReady = true;
+                    return true;
+                } else if (response.includes('NO DATA') || response.includes('UNABLE TO CONNECT')) {
+                    throw new Error('Unable to connect to vehicle');
+                } else {
+                    // Unexpected response, try again
+                    await this.delay(500);
+                    attempts++;
+                }
+            }
+            
+            throw new Error('Protocol negotiation timeout');
+            
+        } catch (error) {
+            console.error('[ELM327Protocol] Initialization failed:', error);
+            throw error;
+        }
     }
     
     /**
-     * Format PID request
+     * Send command and wait for response
      */
-    formatPIDRequest(mode, pid) {
-        return `${mode}${pid}`;
+    async sendCommand(command) {
+        if (!this.sendCommandFn) {
+            throw new Error('Send command function not set');
+        }
+        
+        console.log('[ELM327Protocol] Sending command:', command);
+        const response = await this.sendCommandFn(command);
+        console.log('[ELM327Protocol] Received response:', response);
+        
+        return response;
+    }
+    
+    /**
+     * Request PID value
+     */
+    async requestPID(pid) {
+        if (!this.protocolReady) {
+            throw new Error('Protocol not ready');
+        }
+        
+        const command = '01' + pid;
+        const response = await this.sendCommand(command);
+        
+        return this.parsePIDResponse(response, pid);
+    }
+    
+    /**
+     * Request multiple PIDs at once
+     */
+    async requestMultiplePIDs(pids) {
+        const results = {};
+        
+        for (const pid of pids) {
+            try {
+                results[pid] = await this.requestPID(pid);
+            } catch (error) {
+                console.error(`[ELM327Protocol] Failed to get PID ${pid}:`, error);
+                results[pid] = null;
+            }
+        }
+        
+        return results;
     }
     
     /**
      * Parse PID response
      */
     parsePIDResponse(response, pid) {
-        // TODO: Implement in Task 4
+        // Clean up response
+        response = response.trim().replace(/\s+/g, ' ');
+        
+        // Check for errors
+        if (response.includes('NO DATA') || response.includes('?') || response.includes('ERROR')) {
+            return null;
+        }
+        
+        // Expected format: "41 XX YY ZZ..." where XX is the PID
+        const match = response.match(/41 ([0-9A-F]{2})((?:\s[0-9A-F]{2})+)/);
+        if (!match) {
+            console.warn('[ELM327Protocol] Invalid PID response format:', response);
+            return null;
+        }
+        
+        const responsePID = match[1];
+        const data = match[2].trim().replace(/\s/g, '');
+        
+        // Verify PID matches
+        if (responsePID.toUpperCase() !== pid.toUpperCase()) {
+            console.warn('[ELM327Protocol] PID mismatch:', responsePID, 'vs', pid);
+            return null;
+        }
+        
+        // Decode based on PID
+        const decoder = this.pidDecoders[pid.toUpperCase()];
+        if (decoder) {
+            return decoder(data);
+        }
+        
+        console.warn('[ELM327Protocol] No decoder for PID:', pid);
         return null;
     }
     
     /**
-     * Decode engine RPM from response
+     * Read diagnostic trouble codes
      */
+    async readDTCs() {
+        if (!this.protocolReady) {
+            throw new Error('Protocol not ready');
+        }
+        
+        const response = await this.sendCommand('03');
+        return this.parseDTCResponse(response);
+    }
+    
+    /**
+     * Parse DTC response
+     */
+    parseDTCResponse(response) {
+        const dtcs = [];
+        
+        // Remove spaces and split into bytes
+        const clean = response.replace(/\s/g, '');
+        
+        // DTC format: 43 XX YY ZZ... where XX is count
+        if (!clean.startsWith('43')) {
+            return dtcs;
+        }
+        
+        // Extract DTC count
+        const count = parseInt(clean.substring(2, 4), 16);
+        if (count === 0) {
+            return dtcs;
+        }
+        
+        // Parse DTCs (2 bytes each)
+        let pos = 4;
+        while (pos < clean.length - 3) {
+            const byte1 = clean.substring(pos, pos + 2);
+            const byte2 = clean.substring(pos + 2, pos + 4);
+            
+            const dtc = this.decodeDTC(byte1 + byte2);
+            if (dtc) {
+                dtcs.push(dtc);
+            }
+            
+            pos += 4;
+        }
+        
+        return dtcs;
+    }
+    
+    /**
+     * Decode DTC from hex
+     */
+    decodeDTC(hex) {
+        const value = parseInt(hex, 16);
+        
+        // First 2 bits determine the category
+        const category = (value >> 14) & 0x03;
+        const categories = ['P', 'C', 'B', 'U']; // Powertrain, Chassis, Body, Network
+        
+        // Next 2 bits are the first digit
+        const digit1 = (value >> 12) & 0x03;
+        
+        // Remaining 12 bits are the last 3 digits
+        const digits = value & 0x0FFF;
+        
+        return categories[category] + digit1.toString() + digits.toString(16).toUpperCase().padStart(3, '0');
+    }
+    
+    /**
+     * Clear diagnostic trouble codes
+     */
+    async clearDTCs() {
+        if (!this.protocolReady) {
+            throw new Error('Protocol not ready');
+        }
+        
+        const response = await this.sendCommand('04');
+        return response.includes('44') || response.includes('OK');
+    }
+    
+    /**
+     * PID Decoders
+     */
+    
     decodeRPM(data) {
         // Formula: ((A*256)+B)/4
         const a = parseInt(data.substring(0, 2), 16);
         const b = parseInt(data.substring(2, 4), 16);
-        return ((a * 256) + b) / 4;
+        return Math.round(((a * 256) + b) / 4);
     }
     
-    /**
-     * Decode vehicle speed from response
-     */
     decodeSpeed(data) {
         // Formula: A
-        return parseInt(data, 16);
+        return parseInt(data.substring(0, 2), 16);
+    }
+    
+    decodeCoolantTemp(data) {
+        // Formula: A - 40
+        return parseInt(data.substring(0, 2), 16) - 40;
+    }
+    
+    decodeEngineLoad(data) {
+        // Formula: (A * 100) / 255
+        const a = parseInt(data.substring(0, 2), 16);
+        return Math.round((a * 100) / 255);
+    }
+    
+    decodeFuelLevel(data) {
+        // Formula: (A * 100) / 255
+        const a = parseInt(data.substring(0, 2), 16);
+        return Math.round((a * 100) / 255);
+    }
+    
+    decodeThrottlePos(data) {
+        // Formula: (A * 100) / 255
+        const a = parseInt(data.substring(0, 2), 16);
+        return Math.round((a * 100) / 255);
+    }
+    
+    decodeIntakeTemp(data) {
+        // Formula: A - 40
+        return parseInt(data.substring(0, 2), 16) - 40;
+    }
+    
+    decodeMAF(data) {
+        // Formula: ((A*256)+B) / 100
+        const a = parseInt(data.substring(0, 2), 16);
+        const b = parseInt(data.substring(2, 4), 16);
+        return ((a * 256) + b) / 100;
     }
     
     /**
-     * Decode coolant temperature from response
+     * Helper: delay
      */
-    decodeCoolantTemp(data) {
-        // Formula: A - 40
-        return parseInt(data, 16) - 40;
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 

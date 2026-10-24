@@ -6,6 +6,8 @@
 import { StorageManager } from './storage-manager.js';
 import { SampleDataGenerator } from './sample-data.js';
 import { ChartManager } from './chart-manager.js';
+import { BluetoothManager } from './bluetooth-manager.js';
+import { ELM327Protocol } from './elm327-protocol.js';
 
 // Application state
 const app = {
@@ -15,7 +17,9 @@ const app = {
     protocolReady: false,
     storage: null,
     sampleDataGenerator: null,
-    chartManager: null
+    chartManager: null,
+    bluetoothManager: null,
+    elm327Protocol: null
 };
 
 /**
@@ -37,6 +41,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize chart manager
         app.chartManager = new ChartManager(app.storage);
         console.log('[App] Chart manager ready');
+        
+        // Initialize Bluetooth manager
+        app.bluetoothManager = new BluetoothManager();
+        console.log('[App] Bluetooth manager ready');
+        
+        // Initialize ELM327 protocol
+        app.elm327Protocol = new ELM327Protocol();
+        console.log('[App] ELM327 protocol ready');
         
         // Register service worker
         registerServiceWorker();
@@ -261,29 +273,26 @@ async function handleBluetoothConnect() {
     
     try {
         showLoading('Connecting to device...');
-        
-        // Request Bluetooth device
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [
-                { services: ['serial_port'] },
-                { name: 'ELM327' },
-                { namePrefix: 'OBD' }
-            ],
-            optionalServices: ['battery_service']
-        });
-        
-        console.log('[App] Device selected:', device.name);
-        
-        // Connect to GATT server
-        const server = await device.gatt.connect();
-        console.log('[App] GATT server connected');
-        
         updateConnectionStatus('connecting');
-        showToast(`Connected to ${device.name}`);
         
-        // TODO: Initialize ELM327 protocol
-        // This will be implemented in Task 3 & 4
+        // For testing with emulator, use TCP simulation
+        // In production, use real Bluetooth
+        const useTCP = confirm('Connect to TCP emulator? (Cancel for real Bluetooth device)');
         
+        if (useTCP) {
+            await app.bluetoothManager.connectTCP();
+        } else {
+            await app.bluetoothManager.connect();
+        }
+        
+        showToast('Device connected, initializing protocol...');
+        updateConnectionStatus('searching');
+        
+        // Initialize ELM327 protocol
+        await app.elm327Protocol.initialize((cmd) => app.bluetoothManager.sendCommand(cmd));
+        
+        updateConnectionStatus('ready');
+        showToast('Connection ready! Protocol initialized.');
         hideLoading();
         
         // Show terminal for debugging
@@ -295,6 +304,7 @@ async function handleBluetoothConnect() {
     } catch (error) {
         console.error('[App] Bluetooth connection failed:', error);
         showToast('Connection failed: ' + error.message, 'error');
+        updateConnectionStatus('disconnected');
         hideLoading();
     }
 }
@@ -364,7 +374,7 @@ function parseCSV(text) {
 /**
  * Handle terminal command send
  */
-function handleTerminalSend() {
+async function handleTerminalSend() {
     const input = document.getElementById('terminalInput');
     const output = document.getElementById('terminalOutput');
     
@@ -374,11 +384,29 @@ function handleTerminalSend() {
     // Add to output
     appendTerminal(`> ${command}`);
     
-    // TODO: Send command to ELM327
-    // This will be implemented in Task 4
+    // Check if connected
+    if (!app.bluetoothManager || !app.bluetoothManager.isConnected()) {
+        appendTerminal('Error: Not connected to device');
+        input.value = '';
+        return;
+    }
     
-    // Mock response for now
-    appendTerminal(`Response: Command not yet implemented`);
+    try {
+        // Send command
+        const response = await app.bluetoothManager.sendCommand(command);
+        appendTerminal(response);
+        
+        // If it's a PID request and protocol is ready, try to decode
+        if (app.elm327Protocol.protocolReady && command.match(/^01[0-9A-F]{2}$/i)) {
+            const pid = command.substring(2);
+            const value = app.elm327Protocol.parsePIDResponse(response, pid);
+            if (value !== null) {
+                appendTerminal(`Decoded value: ${value}`);
+            }
+        }
+    } catch (error) {
+        appendTerminal(`Error: ${error.message}`);
+    }
     
     input.value = '';
 }

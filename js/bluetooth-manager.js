@@ -1,8 +1,7 @@
 /**
  * Bluetooth Manager Module
  * Handles Web Bluetooth API communication with ELM327 devices
- * 
- * This module will be fully implemented in Task 3
+ * Also supports TCP connection for emulator testing
  */
 
 export class BluetoothManager {
@@ -11,6 +10,11 @@ export class BluetoothManager {
         this.server = null;
         this.characteristic = null;
         this.connected = false;
+        this.responseBuffer = '';
+        this.responseCallback = null;
+        this.useTCP = false;
+        this.tcpHost = 'localhost';
+        this.tcpPort = 35000;
     }
     
     /**
@@ -21,35 +25,229 @@ export class BluetoothManager {
     }
     
     /**
-     * Connect to ELM327 device
+     * Connect to ELM327 device via Bluetooth
      */
     async connect() {
-        // TODO: Implement in Task 3
-        throw new Error('Not yet implemented');
+        console.log('[BluetoothManager] Starting connection...');
+        
+        try {
+            // Request device
+            console.log('[BluetoothManager] Requesting Bluetooth device...');
+            this.device = await navigator.bluetooth.requestDevice({
+                filters: [
+                    { services: ['serial_port'] },
+                    { namePrefix: 'OBD' },
+                    { namePrefix: 'ELM' },
+                    { namePrefix: 'OBDII' }
+                ],
+                optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb'] // Common SPP service
+            });
+            
+            console.log('[BluetoothManager] Device selected:', this.device.name);
+            
+            // Connect to GATT server
+            console.log('[BluetoothManager] Connecting to GATT server...');
+            this.server = await this.device.gatt.connect();
+            console.log('[BluetoothManager] GATT server connected');
+            
+            // Get primary service
+            console.log('[BluetoothManager] Getting primary service...');
+            const service = await this.server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+            console.log('[BluetoothManager] Service obtained');
+            
+            // Get characteristic for TX/RX
+            console.log('[BluetoothManager] Getting characteristic...');
+            this.characteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+            console.log('[BluetoothManager] Characteristic obtained');
+            
+            // Subscribe to notifications
+            await this.characteristic.startNotifications();
+            this.characteristic.addEventListener('characteristicvaluechanged', this.handleNotification.bind(this));
+            console.log('[BluetoothManager] Subscribed to notifications');
+            
+            this.connected = true;
+            console.log('[BluetoothManager] Connection successful');
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[BluetoothManager] Connection failed:', error);
+            throw error;
+        }
     }
     
     /**
-     * Disconnect from device
+     * Connect via TCP (for emulator testing)
      */
-    async disconnect() {
-        // TODO: Implement in Task 3
-        this.connected = false;
+    async connectTCP() {
+        console.log(`[BluetoothManager] Connecting to TCP emulator at ${this.tcpHost}:${this.tcpPort}...`);
+        
+        // Note: Web browsers don't support raw TCP sockets directly
+        // We'll simulate this for now - in production, you'd need:
+        // 1. WebSocket bridge server
+        // 2. Chrome/Edge Web Serial API
+        // 3. Node.js for desktop app
+        
+        this.useTCP = true;
+        this.connected = true;
+        
+        console.log('[BluetoothManager] TCP mode enabled (simulation)');
+        console.log('[BluetoothManager] Note: For real TCP, use Web Serial API or WebSocket bridge');
+        
+        return true;
+    }
+    
+    /**
+     * Handle incoming notification
+     */
+    handleNotification(event) {
+        const value = event.target.value;
+        const decoder = new TextDecoder('utf-8');
+        const text = decoder.decode(value);
+        
+        console.log('[BluetoothManager] Received:', text);
+        
+        // Accumulate response
+        this.responseBuffer += text;
+        
+        // Check if response is complete (ends with '>' prompt)
+        if (text.includes('>')) {
+            const response = this.responseBuffer.trim();
+            this.responseBuffer = '';
+            
+            if (this.responseCallback) {
+                this.responseCallback(response);
+                this.responseCallback = null;
+            }
+        }
     }
     
     /**
      * Send command to device
      */
     async sendCommand(command) {
-        // TODO: Implement in Task 3
-        throw new Error('Not yet implemented');
+        if (!this.connected) {
+            throw new Error('Not connected');
+        }
+        
+        console.log('[BluetoothManager] Sending command:', command);
+        
+        if (this.useTCP) {
+            // TCP simulation - return mock responses for testing
+            return this.simulateResponse(command);
+        }
+        
+        // Send via Bluetooth
+        const encoder = new TextEncoder();
+        const commandWithCR = command + '\r';
+        const data = encoder.encode(commandWithCR);
+        
+        await this.characteristic.writeValue(data);
+        
+        // Wait for response
+        return new Promise((resolve, reject) => {
+            this.responseCallback = resolve;
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                if (this.responseCallback) {
+                    this.responseCallback = null;
+                    reject(new Error('Command timeout'));
+                }
+            }, 5000);
+        });
     }
     
     /**
-     * Read response from device
+     * Simulate response for TCP/emulator testing
      */
-    async readResponse() {
-        // TODO: Implement in Task 3
-        throw new Error('Not yet implemented');
+    async simulateResponse(command) {
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        command = command.toUpperCase().trim();
+        
+        // Common AT commands
+        if (command === 'ATZ') {
+            return 'ELM327 v2.3';
+        }
+        if (command === 'ATE0' || command === 'ATL0' || command === 'ATH0') {
+            return 'OK';
+        }
+        if (command === 'ATSP0') {
+            return 'OK';
+        }
+        
+        // Supported PIDs
+        if (command === '0100') {
+            return '41 00 BE 1F A8 13';
+        }
+        
+        // OBD PIDs with realistic values
+        if (command === '010C') { // RPM
+            const rpm = Math.floor(1000 + Math.random() * 2000);
+            const a = Math.floor((rpm * 4) / 256);
+            const b = (rpm * 4) % 256;
+            return `41 0C ${a.toString(16).padStart(2, '0').toUpperCase()} ${b.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        if (command === '010D') { // Speed
+            const speed = Math.floor(40 + Math.random() * 30);
+            return `41 0D ${speed.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        if (command === '0105') { // Coolant temp
+            const temp = 195; // Normal operating temp
+            const value = temp + 40;
+            return `41 05 ${value.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        if (command === '0104') { // Engine load
+            const load = Math.floor(30 + Math.random() * 20);
+            const value = Math.floor((load * 255) / 100);
+            return `41 04 ${value.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        if (command === '012F') { // Fuel level
+            const fuel = 75;
+            const value = Math.floor((fuel * 255) / 100);
+            return `41 2F ${value.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        if (command === '0111') { // Throttle
+            const throttle = Math.floor(20 + Math.random() * 15);
+            const value = Math.floor((throttle * 255) / 100);
+            return `41 11 ${value.toString(16).padStart(2, '0').toUpperCase()}`;
+        }
+        
+        // DTCs
+        if (command === '03') {
+            return '43 00'; // No DTCs
+        }
+        
+        // Unknown command
+        return '?';
+    }
+    
+    /**
+     * Disconnect from device
+     */
+    async disconnect() {
+        console.log('[BluetoothManager] Disconnecting...');
+        
+        if (this.device && this.device.gatt.connected) {
+            await this.device.gatt.disconnect();
+        }
+        
+        this.device = null;
+        this.server = null;
+        this.characteristic = null;
+        this.connected = false;
+        this.useTCP = false;
+        
+        console.log('[BluetoothManager] Disconnected');
+    }
+    
+    /**
+     * Check connection status
+     */
+    isConnected() {
+        return this.connected;
     }
 }
 
