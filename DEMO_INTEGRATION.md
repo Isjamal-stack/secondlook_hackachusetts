@@ -1,116 +1,81 @@
-# Person C: demo preview and handoff
+# Person C: demo preview and connection guide
 
-## Integrated team demo
+`PROJECT_BRIEF.md` is the overall plan. This file describes the current connections and presentation checks. Shared Reading, Analysis event, and Explanation formats are unchanged. A's simulator and rule files are unchanged.
 
-The dashboard now installs A's `createSimulation` factory automatically. Start the combined app using `./start.sh` and open **http://localhost:3000/?demo=integrated**. See `STARTUP.md` for installation and AI setup. The old port-8000 file server does not serve `/api/explain`.
+## What changed for the presentation
 
-Both scenarios run for 45 seconds. Normal warm-up produces stable evidence **90 → 90°C over 10 seconds** at second 30. Rising temperature produces **92 → 100°C over 10 seconds** at second 20. Evidence records the triggering window; live readings continue afterward. The interface calls this block **Rule evidence** and marks the demo as time-compressed.
+- Only the working dashboard is available. Connect, Diagnostics, History, Maintenance, and Settings are hidden, disabled, and blocked by navigation. Their source and stored data remain intact. History's legacy statistics have not been repaired because History is hidden.
+- Import no longer claims success without saving data; its handler explicitly says import is unavailable and no data was saved. The static diagnostic-health claim has been replaced with “No diagnostic scan has been performed.” No Bluetooth, maintenance, or settings system was added.
+- **Rule evidence** stays visible beside the explanation. The live gauges/chart continue after a finding, while its evidence stays fixed at the triggering window.
+- Numeric observation, title, urgency, next step, and limitations come from deterministic code/A's event. AI supplies only a short qualitative description of the observed direction and uncertainty.
+- The server rejects the review's unsupported normal-range, normal-warm-up, component-operation, and vehicle-health phrases, plus generated numeric measurements. Rejected/invalid AI output uses the prepared explanation with `explanation_source: 'template'`. The guard is deliberately conservative and can reject harmless phrasing; it is a limited check, not proof that all accepted prose is correct.
+- Requests validate consumed shared fields, finite numeric evidence, nonnegative observation duration, urgency, and string limitations before model access. Malformed requests receive 400. Empty evidence is allowed for `unknown`, not a normal/attention/urgent finding.
+- Responses require every Explanation field, a matching `event_id`, and the supplied action/limitations. The server retains its prepared title/action/limitations even when AI prose passes.
+- Run IDs include a fresh per-page session UUID. The server caches by event ID plus a canonical full-payload fingerprint, so changed evidence or actions do not silently reuse another result.
 
-Shared formats and adapter functions below are unchanged. A's rules remain the source of urgency, evidence, and approved actions. B's explanation prompt now receives units, simulation context, actions, and limitations. Fallback wording describes the actual observed window. Templates are labeled honestly; live AI still requires locally configured credentials and a successful end-to-end check.
+## Rule evidence: what A supplies
 
-Server routes allow frontend assets only; configuration and server files are blocked. Startup binds to localhost with debugging off. The default example configuration selects template mode.
-
-Verified locally after integration: A's 10 tests and 6 focused server tests pass. Both real simulator scenarios were checked in the browser against the template endpoint, including normal evidence, attention evidence, chart updates, pause/resume, and reset. No browser errors appeared. Server tests cover blocked private files, grounded templates, model-failure fallback, prompt context, and the mocked AI response contract. Live AI output is still unverified until credentials are configured locally.
-
-The sections below describe the original fixture preview and adapter contract. For the current startup workflow, follow `STARTUP.md`. The six-reading fixtures remain in the source for UI development but are no longer the default.
-
-Work is on `test`. No commit or push is needed to preview.
-
-## Interface update: Why this was flagged
-
-The recommendation card now includes a compact **Why this was flagged** block alongside the explanation. It shows A's rule-based finding immediately and keeps it visible while B's explanation loads or falls back. Reset and scenario changes clear both. The existing controls, reading units, and chart are unchanged.
-
-No shared data-format or function-signature changes are required. `PROJECT_BRIEF.md` remains the overall plan; this file is the practical connection guide.
-
-| Display | Existing analysis-event fields |
+| UI content | Existing analysis-event fields |
 | --- | --- |
-| Rule | `condition`, shown with a readable label (for example, `sustained_temperature_rise` → “Sustained temperature rise”) |
-| Triggering readings | Each `evidence[].metric`, `start_value`, and `end_value`, with the metric's units |
-| Observation duration | Each `evidence[].duration_s`, in seconds; kept per metric rather than combined |
-| Urgency, action, uncertainty | `urgency`, `approved_next_step`, and `limitations` in the surrounding recommendation card |
+| Rule name | `condition`, formatted as a readable label |
+| Triggering readings and units | `evidence[].metric`, `start_value`, `end_value` |
+| Observation duration per metric | `evidence[].duration_s` (seconds) |
+| Urgency, action, uncertainty | `urgency`, `approved_next_step`, `limitations` |
+| Explanation ownership | Unique `event_id`, matching `scenario_id` |
 
-The shared format has no separate rule-name field: `condition` is the rule identifier used here. Unknown condition names are displayed with underscores replaced by spaces. The interface does not calculate thresholds, identify a rule, or infer an observation duration.
+A's `createSimulation` factory is already installed automatically. It emits normalized readings and analysis events via the callbacks below. It owns validation, timing, thresholds, and trend detection. C does not add rule logic. Supply real triggering windows and use the supplied `run_id` prefix for unique event IDs.
 
-**Person A supplies:** normalized readings and an analysis event when the condition changes, including `condition`, unique `event_id`, selected `scenario_id`, `urgency`, `observed_at_ms`, numeric evidence with units defined by `metric`, `limitations`, and `approved_next_step`. Supply the readings that actually triggered your rule and its measured observation window. Use `run_id` in event IDs and the adapter callbacks below. No additional rule logic belongs in the interface.
-
-**Person B matches the finding:** return the exact input `event_id` in the Explanation object. `renderExplanation()` accepts only the currently active event ID; a different ID is ignored. AI text updates the title and explanation, while the rule, measurements, durations, urgency, and approved action stay owned by A's event. A timeout, invalid response, or unavailable service leaves the labeled template visible. Use a new event ID for a new finding and for each run.
-
-## Preview
-
-```sh
-python3 -m http.server 8000
-```
-
-Open **http://localhost:8000/?demo=2**. The query avoids an old cached home page. The new JS/CSS entry URLs are versioned, and the app no longer registers the old cache-first service worker during this demo. If you previously loaded this exact URL before these changes, use a new query such as `?demo=3` or clear this site's service worker/cache in browser devtools, then reload.
-
-Chart.js loads from the existing CDN, so use an internet connection. If it cannot load, the interface says so and the readings/controls still work.
-
-1. Leave **Normal warm-up** selected, click **Start**, then **Pause** and **Resume**.
-2. Within six readings, temperature levels off and an **Example explanation** appears.
-3. Choose **Rising engine temperature**; this clears the first run. Click **Start**.
-4. Temperature reaches 108 °C. **Why this was flagged** shows **Sustained temperature rise**, **92 → 108 °C**, and **5 s** for `coolant_c`, alongside the clearly labeled example explanation. These are fixture values, not diagnostic thresholds.
-5. Click **Reset**: readings, chart, recommendation, and playback clear. No adapter is required.
-
-The six fixed rows in `js/demo-examples.js` are temporary UI fixtures. They are deliberately short, scripted examples, not Person A's simulator or diagnostic rules. Example events/explanations are prewritten; no AI request is sent for them. Legacy history data is isolated because its units differ.
-
-### Check the team integration
-
-After installing A's controller adapter, start both scenarios and check that the displayed rule, start/end readings, and duration match A's event exactly. The normal scenario must keep its normal urgency; a missing finding should continue to say it is waiting for analysis.
-
-With B's same-origin service running, confirm `POST /api/explain` receives that event and its response repeats the same `event_id`. The source should change to **AI explanation** only for an accepted AI response. In the browser console, `secondLookUI.renderExplanation()` returns `false` for an explanation with a different ID and leaves the current finding untouched. An unavailable endpoint should keep **Template explanation · Fallback** while readings continue.
-
-Pause/resume once, then Reset or change scenarios while an explanation is pending. The readings, chart, rule, and duration must clear; an old response must not restore them. Example playback intentionally uses local explanations, so connect A before checking B's network request.
+Required request fields: nonempty `event_id`, `scenario_id`, `condition`, and `approved_next_step`; one of `normal`, `attention`, `urgent`, `unknown` for urgency; `evidence` and `limitations` arrays. Evidence objects use the four shared metrics with finite `start_value`/`end_value` and nonnegative finite `duration_s`. If present, `observed_at_ms` must be finite and nonnegative. A continues to send it as defined in the brief. Missing live measurements remain `null`; they do not become numeric evidence for a normal finding.
 
 ## Exact connection points
 
-Available after page load on `window.secondLookUI`, and as named exports from `js/app.js`:
+Available on `window.secondLookUI` after load, with named exports from `js/app.js`:
 
-- `renderReading(reading)` — the brief's Reading object. `null` displays as `—`; temperature is Celsius and speed is km/h. Adds a chart point using `elapsed_s`.
-- `renderAnalysis(event, explanation?, { example: false }?)` — the brief's Analysis event. Renders numeric evidence, urgency, approved action, and limitations immediately. If no valid explanation is supplied, requests `POST /api/explain` with the event as the JSON body. Expects the Explanation object directly as JSON.
-- `renderExplanation(explanation)` — the brief's Explanation object. Requires a matching active `event_id` and nonempty output fields. Uses the analysis's approved next step and retains its limitations. Invalid/stale outputs leave the template visible.
-- `configureDemo({ createSimulation, explain })` (global name: `secondLookUI.configure`) — installs adapters and resets the run. Use this once the modules arrive; no teammate files need to be edited by C.
-- `startDemo()`, `pauseDemo()`, `resetDemo()` (global names: `start`, `pause`, `reset`).
+- `renderReading(reading)` — shared Reading: `source: 'simulation'`, Celsius, km/h, RPM, percent. Missing values display `—`. Chart x-axis uses `elapsed_s`.
+- `renderAnalysis(event, explanation?, { example: false }?)` — displays evidence immediately, then calls the same-origin endpoint unless a valid explanation is supplied.
+- `renderExplanation(explanation)` — requires all output text fields and the active `event_id`. A different/stale ID returns `false` without replacing the finding.
+- `configureDemo({ createSimulation, explain })` (global: `secondLookUI.configure`) — resets the run and installs supplied adapters; omitted adapters are preserved.
+- `startDemo()`, `pauseDemo()`, `resetDemo()` (global: `start`, `pause`, `reset`).
 
-`scenario_id` must match the selected value: `normal-warmup` or `temperature-rise`. Readings must have `source: 'simulation'`. Events need unique `event_id` values per run; use the supplied `run_id` prefix.
-
-### Person A: controller adapter
+Scenario IDs: `normal-warmup` and `temperature-rise`. The synchronous factory contract remains:
 
 ```js
-window.secondLookUI.configure({
-    createSimulation({ scenario_id, run_id, onReading, onAnalysis, onComplete }) {
-        // Adapt your simulator/insight-engine exports here.
-        // Deliver normalized readings via onReading(reading).
-        // Deliver condition changes via onAnalysis(event).
-        // Call onComplete() when the scenario finishes.
-        return {
-            start() { /* start or resume; advance only while running */ },
-            pause() { /* stop advancing and emitting */ },
-            reset() { /* release timers and clear analysis history */ }
-        };
-    }
-});
+createSimulation({ scenario_id, run_id, onReading, onAnalysis, onComplete })
+// Returns { start(), pause(), reset() }.
 ```
 
-`createSimulation` is a synchronous factory. Its returned methods are synchronous controls; reading/event callbacks may fire later. Emit the first reading from `start()`, after the factory returns. The UI owns the controls; A owns timing, readings, validation, and trend detection. Use these provided callbacks so Reset automatically ignores callbacks from earlier runs. Scenario changes also reset. The UI does not infer normal health when no analysis is available.
+Emit from `start()` or later, not from the constructor. Call `onAnalysis(event)` only when the finding changes. Use the provided callbacks so old callbacks are ignored after Reset/scenario changes. Six-reading example fixtures remain available in source for development but are not the default presentation path.
 
-### Person B: explanation endpoint
+## Person B: matching the explanation
 
-Serve the frontend and **POST `/api/explain`** on the same origin. Accept the brief's Analysis event and return the brief's Explanation object directly, with `explanation_source: 'ai'` or `'template'`. No browser API keys.
+Serve the frontend and `POST /api/explain` together. Accept A's Analysis event and return the Explanation object directly, including the exact input `event_id`, `title`, `explanation`, `next_step`, `limitation`, and `explanation_source` (`ai` or `template`). The same event ID connects B's prose to A's finding; prose never replaces A's rule/evidence/action.
 
-There is already a six-second timeout, immediate labeled template fallback, one request per active event ID, and protection against late responses after reset/scenario changes. B should validate AI output on the server as planned in the brief.
+The default request has a six-second UI timeout and a five-second model timeout with no retries. Invalid output, blocked wording, timeout, and unavailable AI use a labeled template. A late response cannot restore an earlier run. The AI prompt now requests only two qualitative sentences; numeric evidence and approved advice are displayed separately. Do not treat a template response as a successful live-AI result.
 
-If B exposes a client adapter instead of the same-origin route:
+An optional client adapter can still be supplied:
 
 ```js
-window.secondLookUI.configure({
+secondLookUI.configure({
     explain: (event, { signal }) => yourExplanationClient(event, { signal })
 });
 ```
 
-Configure accepts either or both adapters and preserves any adapter you omit. Passing `explain: null` restores the default endpoint request. Configuring only the explanation client keeps the example playback until A is connected; fixtures intentionally keep their own labeled example explanations.
+Custom clients must preserve the server's validation/grounding checks; do not call a model directly from the browser. Passing `explain: null` restores the same-origin endpoint. Credentials remain server-only.
 
-## Verification performed
+## Preview and check
 
-JavaScript syntax and whitespace checks passed. A temporary Node DOM/Chart harness exercised start, duplicate-start prevention, pause/resume, both fixture runs, evidence and unit labels, chart data updates, reset, missing values, and ignored callbacks from a previous run. The user subsequently visually checked the interface and confirmed it works.
+Follow `STARTUP.md`: run `./start.sh`, then open **http://localhost:3000/?demo=reviewed-4**. Restart an already-running server to load the Python changes. Use a fresh URL query/hard refresh if an older service worker cached the page. CSS/JS entry URLs are versioned. Chart.js still needs the existing CDN connection.
 
-For the new finding block, focused checks cover condition labels, evidence values and units, per-metric duration, matching/mismatched explanation IDs, and reset. The previous dashboard was visually confirmed by the user; the new block still needs visual review.
+1. **Normal warm-up:** Start; at second 30, rule evidence is **90 → 90°C over 10 s**, with normal urgency. Text describes a steady window, not normal coolant limits or functioning cooling parts.
+2. **Rising engine temperature:** Switch scenarios (clears the run), then Start; at second 20, evidence is **92 → 100°C over 10 s**, with attention urgency. Text describes a rise, not “hotter than normal.”
+3. Check the network response's `event_id` against the active event. Accept **AI explanation** only after an accepted real model response; **Template explanation · Fallback** is expected when AI is unavailable or rejected.
+4. To check fallback without touching credentials, start another local process with `AI_PROVIDER=none PORT=3002 python3 server/server.py`; open port 3002 and repeat a scenario.
+5. Pause/Resume once. Reset during an explanation request; gauges, chart, evidence, and explanation must clear, and a late response must not restore them. Confirm only Dashboard is accessible.
+
+## Current verification
+
+All 28 focused automated tests pass: A's unchanged 10 tests, 13 server tests (including seven new review regressions), and five new UI-harness tests. They cover the actual unsupported phrases from the review, malformed requests, faulty output, cache identity, both real simulator scenarios, source labels, fallback, pause/resume, chart data, session IDs, and Reset during a pending explanation. The UI tests use DOM/Chart stubs, not a real browser renderer.
+
+Live provider calls for both actual scenario findings succeeded and passed the guard after the prompt adjustment. Earlier rejected live responses were replaced by prepared templates. Final HTTP requests to the updated `/api/explain` endpoint for both actual findings returned 200 with accepted `ai` explanations, matching event IDs, and unchanged approved actions/limitations. Credentials were neither displayed nor changed.
+
+Visual browser review is complete: the user confirmed both scenarios, live AI wording, chart rendering, pause/resume, and Reset passed. All 28 tests were also independently rerun successfully. Offline/CDN outage rendering, real Bluetooth/car hardware, hidden legacy History statistics, and destructive stored-data operations were not tested in this fix pass.

@@ -6,10 +6,13 @@ Provides AI-powered explanations for vehicle diagnostic events
 from flask import Flask, request, jsonify, send_from_directory, abort
 import os
 import time
+import math
+import json
+import hashlib
 from pathlib import Path
 from dotenv import load_dotenv
 from template_explanations import generate_template_explanation
-from ai_provider import generate_ai_explanation
+from ai_provider import generate_ai_explanation, explanation_is_grounded
 
 # Load environment variables
 load_dotenv(Path(__file__).with_name('.env'))
@@ -39,62 +42,65 @@ def cleanup_cache():
         del processed_events[k]
 
 
+def finite_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def validate_analysis_event(event):
-    """Validate analysis event structure"""
+    """Validate only the shared fields consumed by the explanation service."""
     errors = []
-    
     if not isinstance(event, dict) or not event:
-        errors.append('Analysis event is required')
-        return {'valid': False, 'errors': errors}
-    
-    if not event.get('event_id') or not isinstance(event['event_id'], str):
-        errors.append('event_id must be a non-empty string')
-    
-    if not event.get('condition') or not isinstance(event['condition'], str):
-        errors.append('condition must be a non-empty string')
-    
-    if not event.get('urgency') or not isinstance(event['urgency'], str):
-        errors.append('urgency must be a non-empty string')
-    
-    if 'observed_at_ms' in event and not isinstance(event['observed_at_ms'], (int, float)):
-        errors.append('observed_at_ms must be a number')
-    
-    if 'evidence' in event and not isinstance(event['evidence'], list):
+        return {'valid': False, 'errors': ['Analysis event is required']}
+    for field in ('event_id', 'scenario_id', 'condition', 'approved_next_step'):
+        if not isinstance(event.get(field), str) or not event[field].strip():
+            errors.append(f'{field} must be a non-empty string')
+    if event.get('urgency') not in ('normal', 'attention', 'urgent', 'unknown'):
+        errors.append('urgency must be normal, attention, urgent, or unknown')
+    if 'observed_at_ms' in event and (not finite_number(event['observed_at_ms']) or event['observed_at_ms'] < 0):
+        errors.append('observed_at_ms must be a finite nonnegative number')
+    evidence = event.get('evidence')
+    if not isinstance(evidence, list):
         errors.append('evidence must be an array')
-    
-    return {
-        'valid': len(errors) == 0,
-        'errors': errors
-    }
+    else:
+        if not evidence and event.get('urgency') != 'unknown':
+            errors.append('A finding requires numeric evidence unless urgency is unknown')
+        for item in evidence:
+            if not isinstance(item, dict):
+                errors.append('Each evidence item must be an object')
+                continue
+            if item.get('metric') not in ('coolant_c', 'rpm', 'speed_kmh', 'engine_load_pct'):
+                errors.append('Evidence metric must use the shared reading format')
+            for field in ('start_value', 'end_value', 'duration_s'):
+                if not finite_number(item.get(field)):
+                    errors.append(f'{field} must be a finite number')
+            if finite_number(item.get('duration_s')) and item['duration_s'] < 0:
+                errors.append('duration_s must be nonnegative')
+    limitations = event.get('limitations')
+    if not isinstance(limitations, list) or not all(isinstance(item, str) and item.strip() for item in limitations):
+        errors.append('limitations must be an array of non-empty strings')
+    return {'valid': not errors, 'errors': errors}
 
 
-def validate_explanation(explanation):
-    """Validate explanation output structure"""
+def validate_explanation(explanation, event):
+    """Enforce contract, event ownership, and the limited generated-prose guard."""
     errors = []
-    
-    if not explanation:
-        errors.append('Explanation is required')
-        return {'valid': False, 'errors': errors}
-    
-    if not explanation.get('event_id') or not isinstance(explanation['event_id'], str):
-        errors.append('event_id must be a non-empty string')
-    
-    if not explanation.get('title') or not isinstance(explanation['title'], str):
-        errors.append('title must be a non-empty string')
-    
-    if not explanation.get('explanation') or not isinstance(explanation['explanation'], str):
-        errors.append('explanation must be a non-empty string')
-    
-    if not explanation.get('next_step') or not isinstance(explanation['next_step'], str):
-        errors.append('next_step must be a non-empty string')
-    
-    if not explanation.get('explanation_source') or explanation['explanation_source'] not in ['ai', 'template']:
-        errors.append('explanation_source must be either "ai" or "template"')
-    
-    return {
-        'valid': len(errors) == 0,
-        'errors': errors
-    }
+    if not isinstance(explanation, dict):
+        return {'valid': False, 'errors': ['Explanation must be an object']}
+    for field in ('event_id', 'title', 'explanation', 'next_step', 'limitation'):
+        if not isinstance(explanation.get(field), str) or not explanation[field].strip():
+            errors.append(f'{field} must be a non-empty string')
+    if explanation.get('explanation_source') not in ('ai', 'template'):
+        errors.append('explanation_source must be ai or template')
+    if explanation.get('event_id') != event['event_id']:
+        errors.append('event_id does not match the finding')
+    if explanation.get('next_step') != event['approved_next_step']:
+        errors.append('next_step must preserve the approved action')
+    if isinstance(explanation.get('limitation'), str) and any(
+            item not in explanation['limitation'] for item in event['limitations']):
+        errors.append('limitation must retain the supplied limitations')
+    if not errors and explanation.get('explanation_source') == 'ai' and not explanation_is_grounded(explanation, event):
+        errors.append('Generated prose failed the grounding guard')
+    return {'valid': not errors, 'errors': errors}
 
 
 @app.route('/api/explain', methods=['POST'])
@@ -118,9 +124,11 @@ def explain():
         # Clean up expired cache entries
         cleanup_cache()
         
-        # Check cache for duplicate requests
-        if event_id in processed_events:
-            cached = processed_events[event_id]['data']
+        # Identical IDs with different evidence/actions must never share a result.
+        fingerprint = hashlib.sha256(json.dumps(analysis_event, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+        cache_key = (event_id, fingerprint)
+        if cache_key in processed_events:
+            cached = processed_events[cache_key]['data']
             print(f"[Explain] Returning cached explanation for {event_id}")
             return jsonify(cached)
         
@@ -140,17 +148,26 @@ def explain():
                 raise Exception('AI provider not configured')
         except Exception as ai_error:
             # Fall back to template explanation
-            print(f"[Explain] Using template explanation for {event_id}: {ai_error}")
+            print("[Explain] AI unavailable; using prepared template")
             explanation = generate_template_explanation(analysis_event)
         
+        # A provider may choose template mode; use our prepared template in that case.
+        if isinstance(explanation, dict) and explanation.get('explanation_source') == 'template':
+            explanation = generate_template_explanation(analysis_event)
+
         # Validate explanation output
-        output_validation = validate_explanation(explanation)
+        output_validation = validate_explanation(explanation, analysis_event)
         if not output_validation['valid']:
             print(f"[Explain] Generated invalid explanation: {output_validation['errors']}")
             explanation = generate_template_explanation(analysis_event)
         
+        # Keep the title, next step, and uncertainty deterministic even for AI prose.
+        prepared = generate_template_explanation(analysis_event)
+        for field in ('title', 'next_step', 'limitation'):
+            explanation[field] = prepared[field]
+
         # Cache the result
-        processed_events[event_id] = {
+        processed_events[cache_key] = {
             'data': explanation,
             'timestamp': time.time() * 1000
         }
@@ -161,7 +178,7 @@ def explain():
         return jsonify(explanation)
         
     except Exception as error:
-        print(f"[Explain] Error: {error}")
+        print("[Explain] Request failed")
         
         # Try to return template explanation as last resort
         try:
@@ -170,7 +187,7 @@ def explain():
         except Exception as fallback_error:
             return jsonify({
                 'error': 'Failed to generate explanation',
-                'message': str(error)
+                'message': 'Unable to prepare explanation'
             }), 500
 
 

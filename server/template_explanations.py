@@ -7,7 +7,7 @@ TEMPLATE_EXPLANATIONS = {
     'normal_warmup': {
         'title': 'Temperature is steady in this window',
         'explanation': 'Coolant temperature stayed steady during the observed window and matched our demo’s stable-temperature rule. This does not establish the condition of the whole car.',
-        'limitation': 'These readings show the warm-up process but cannot verify all cooling system components are functioning properly.'
+        'limitation': 'This observed window cannot verify cooling component operation.'
     },
     
     'sustained_temperature_rise': {
@@ -23,8 +23,8 @@ TEMPLATE_EXPLANATIONS = {
     },
     
     'normal': {
-        'title': 'Readings appear normal',
-        'explanation': 'Current vehicle readings are within expected ranges for the observed conditions.',
+        'title': 'Observed reading pattern',
+        'explanation': 'These readings matched a prototype rule during the observed window. They do not establish vehicle health.',
         'limitation': 'These readings provide a snapshot and cannot guarantee all vehicle systems are functioning correctly.'
     },
     

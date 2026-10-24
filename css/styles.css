@@ -767,3 +767,6 @@ body {
 @media (max-width: 700px) {
     .finding-details { grid-template-columns: 1fr; }
 }
+
+/* Keep unfinished sections out of the presentation, including legacy flex rules. */
+[hidden] { display: none !important; }

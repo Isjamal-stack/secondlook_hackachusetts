@@ -368,6 +368,8 @@ function setupNavigation() {
  * Switch to a different view
  */
 function switchView(viewName) {
+    // The presentation exposes only the verified dashboard. Legacy views stay in source.
+    if (viewName !== 'dashboard') return;
     console.log('[App] Switching to view:', viewName);
     
     // Hide all views
@@ -525,42 +527,8 @@ async function handleBluetoothConnect() {
  * Handle file upload
  */
 async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    console.log('[App] File selected:', file.name);
-    
-    try {
-        showLoading('Importing data...');
-        
-        const text = await file.text();
-        let data;
-        
-        // Parse based on file type
-        if (file.name.endsWith('.json')) {
-            data = JSON.parse(text);
-            console.log('[App] JSON data parsed:', Object.keys(data));
-        } else if (file.name.endsWith('.csv')) {
-            data = parseCSV(text);
-            console.log('[App] CSV data parsed:', data.length, 'rows');
-        } else {
-            throw new Error('Unsupported file format');
-        }
-        
-        // TODO: Import data to IndexedDB
-        // This will be implemented in Task 5 & 9
-        
-        showToast(`Imported ${file.name} successfully`);
-        hideLoading();
-        
-    } catch (error) {
-        console.error('[App] File upload failed:', error);
-        showToast('Import failed: ' + error.message, 'error');
-        hideLoading();
-    }
-    
-    // Reset file input
     event.target.value = '';
+    showToast('Import is not available in this prototype. No data was saved.');
 }
 
 /**
@@ -986,6 +954,7 @@ async function handleMetricChange(event) {
 }
 
 // Person C integration surface. See DEMO_INTEGRATION.md for the adapter contract.
+const demoSessionId = crypto.randomUUID();
 const demo = {
     run: 0, status: 'ready', controller: null, chart: null, reading: null, event: null,
     example: false, request: null,
@@ -1065,7 +1034,7 @@ export function startDemo() {
         try {
             demo.controller = demo.adapters.createSimulation({
                 scenario_id: demoElement('demo-scenario').value,
-                run_id: `run-${run}`,
+                run_id: `${demoSessionId}-run-${run}`,
                 onReading: current(renderReading),
                 onAnalysis: current(renderAnalysis),
                 onComplete: current(() => setDemoStatus('complete', 'Run complete. Replay or choose another scenario.'))
