@@ -2,21 +2,13 @@
 
 `PROJECT_BRIEF.md` is the overall plan. This file describes the current connections and presentation checks. Shared Reading, Analysis event, and Explanation formats are unchanged. A's simulator behavior and rule thresholds are preserved. The existing inline downward-step tolerance is now named `RULES.rise_step_tolerance_c`, with the same value and behavior, so the interface can read it directly.
 
-## Latest synchronization
-
-Fast-forwarded to teammate commit `193a533` before applying a focused integration repair. The teammate's expanded simulator readings, additional gauges, structured explanation layout, and other committed files remain in history. No credentials were edited, newly staged, or included in the synchronization repair; no server was restarted.
-
-The incoming commit disabled the reviewed prose guard and removed simulation context, causing existing server regressions to fail. The repair restores these protections while keeping `SUMMARY:`, `LIKELY_CAUSES:`, `WHY_IT_MATTERS:`, and `WHAT_TO_DO:` presentation sections. The prompt requests only supplied trends/uncertainty and the approved action, without invented ranges, diagnoses, probabilities, repair prices, or driving advice. Original limitations are visible again. The cause field stays deterministic (“The cause cannot be determined from these readings”), and both action displays use A's approved step.
-
-The renderer accepts both structured AI text and existing plain-text prepared explanations. Plain fallback text is displayed instead of a permanent “Analyzing” placeholder. Reset clears the teammate's additional gauges and structured sections as well as the previously reviewed markers and summary. Shared endpoint formats are unchanged; the teammate's additional evidence metrics remain supported by the endpoint.
-
 ## Current interface: understanding a run
 
 The main status comes only from the active analysis event: `insufficient_data` → **Collecting readings**, `normal_warmup` → **Temperature steady**, `sustained_temperature_rise` → **Temperature rising**, and `data_unavailable` → **Readings unavailable**. A's urgency and limitations remain visible. AI output cannot replace this status.
 
 **What the car reported** shows frozen numeric evidence and its observation duration. Expand **Why this demo rule matched** for the actual configured window, start/end/change thresholds, stability range, recovery duration, and downward-step tolerance. `js/demo-presentation.js` imports A's `RULES`; it does not evaluate new rules or maintain copies of their constants. The source's previous inline `0.5` tolerance moved into the configuration without changing detector behavior. Thresholds are explicitly demo rules, not universal vehicle limits.
 
-**What this means** retains the existing AI/prepared explanation and honest source label. The approved next step is prominent above both sections. **Understand the terms** provides deterministic definitions of coolant temperature, engine load, RPM, and observation window. Definitions were editorially checked against [Ford's coolant guide](https://www.ford.co.uk/support/how-tos/owner-resources/vehicle-maintenance/how-to-check-and-add-engine-coolant) and [OTC's scan-tool guide](https://otctools.com/sites/default/files/pdf_english_16336.pdf); they are concept explanations, not vehicle assessments. AI remains limited to the observed trend/uncertainty. The synchronization repair above retains this behavior while supporting the teammate’s structured layout.
+**What this means** retains the existing AI/prepared explanation and honest source label. The approved next step is prominent above both sections. **Understand the terms** provides deterministic definitions of coolant temperature, engine load, RPM, and observation window. Definitions were editorially checked against [Ford's coolant guide](https://www.ford.co.uk/support/how-tos/owner-resources/vehicle-maintenance/how-to-check-and-add-engine-coolant) and [OTC's scan-tool guide](https://otctools.com/sites/default/files/pdf_english_16336.pdf); they are concept explanations, not vehicle assessments. AI remains limited to the observed trend/uncertainty; there are no server, prompt, or wording-guard changes in this update.
 
 The chart adds a **circle** for a normal finding and a **triangle** for an attention/urgent finding. Each marker requires an actual reading with matching `observed_at_ms`, scenario, and evidence end value, plus a matching start reading. The highlighted line section uses only plotted readings from that evidence window. Window boundaries use elapsed time after timestamp anchoring, so a pause does not shift them. If anchors are unavailable, no approximate marker is invented. Marker captions and tooltips show trigger time/value separately from the latest gauge.
 
@@ -72,7 +64,7 @@ Emit from `start()` or later, not from the constructor. Call `onAnalysis(event)`
 
 Serve the frontend and `POST /api/explain` together. Accept A's Analysis event and return the Explanation object directly, including the exact input `event_id`, `title`, `explanation`, `next_step`, `limitation`, and `explanation_source` (`ai` or `template`). The same event ID connects B's prose to A's finding; prose never replaces A's rule/evidence/action.
 
-The default request has a six-second UI timeout and a five-second model timeout with no retries. Invalid output, blocked wording, timeout, and unavailable AI use a labeled template. A late response cannot restore an earlier run. The integrated prompt requests short structured sections; numeric evidence and approved advice are displayed separately. Do not treat a template response as a successful live-AI result.
+The default request has a six-second UI timeout and a five-second model timeout with no retries. Invalid output, blocked wording, timeout, and unavailable AI use a labeled template. A late response cannot restore an earlier run. The AI prompt now requests only two qualitative sentences; numeric evidence and approved advice are displayed separately. Do not treat a template response as a successful live-AI result.
 
 An optional client adapter can still be supplied:
 
@@ -86,7 +78,7 @@ Custom clients must preserve the server's validation/grounding checks; do not ca
 
 ## Preview and check
 
-Follow `STARTUP.md`: run `./start.sh`, then open **http://localhost:3000/?demo=sync-6**. Restart an already-running server to load the Python changes. Use a fresh URL query/hard refresh if an older service worker cached the page. CSS/JS entry URLs are versioned. Chart.js still needs the existing CDN connection.
+Follow `STARTUP.md`: run `./start.sh`, then open **http://localhost:3000/?demo=understand-5**. Restart an already-running server to load the Python changes. Use a fresh URL query/hard refresh if an older service worker cached the page. CSS/JS entry URLs are versioned. Chart.js still needs the existing CDN connection.
 
 1. **Normal warm-up:** Click Start, then Pause and Resume. At second 30, expect **Temperature steady**, evidence **90 → 90°C over 10 s**, a circle at **30 s / 90°C**, and highlighted **20–30 s** readings. Expand **Why this demo rule matched** to check A's stability range and duration.
 2. Let the run finish at second 45. The summary should say no attention finding was recorded, with the explicit limitation about whole-vehicle condition.
@@ -98,8 +90,6 @@ Follow `STARTUP.md`: run `./start.sh`, then open **http://localhost:3000/?demo=s
 
 ## Current verification
 
-All 36 automated tests pass after synchronization: A's unchanged 10 tests, 13 unchanged server tests, ten UI-harness tests, and three presentation-helper tests. Two added UI tests check plain fallback text, restored limitations, approved structured actions, and Reset for expanded readings. The original 28 checks remain passing. New checks cover configuration-driven rule descriptions, exact marker placement (including pause gaps and missing anchors), summaries that retain earlier attention, event-derived status, Replay, scenario changes, and Reset during an explanation request. UI tests use DOM/Chart stubs, not a real renderer.
+All 34 automated tests pass: A's unchanged 10 tests, 13 unchanged server tests, eight UI-harness tests, and three new presentation-helper tests. The original 28 checks remain passing. New checks cover configuration-driven rule descriptions, exact marker placement (including pause gaps and missing anchors), summaries that retain earlier attention, event-derived status, Replay, scenario changes, and Reset during an explanation request. UI tests use DOM/Chart stubs, not a real renderer.
 
-The preceding version's visual browser review and live AI/API checks were completed and recorded by the team. The synchronization repair restored the reviewed server safeguards after the incoming commit changed them. Independent visual review passed for both scenarios, chart markers and supporting windows, expandable rule explanations, glossary, trip summaries, Pause/Resume, Replay, and Reset. All 34 tests were independently confirmed passing. Offline/CDN rendering, real hardware, hidden History statistics, and destructive data operations remain outside these checks. Credentials were neither displayed nor changed.
-
-The integrated structured layout and live AI were not visually rerun during synchronization. The independent visual review described above applies to the preceding presentation version. All documented automated tests were rerun on the integrated code; the server was left running untouched.
+The preceding version's visual browser review and live AI/API checks were completed and recorded by the team. This update does not alter the server AI path. Independent visual review passed for both scenarios, chart markers and supporting windows, expandable rule explanations, glossary, trip summaries, Pause/Resume, Replay, and Reset. All 34 tests were independently confirmed passing. Offline/CDN rendering, real hardware, hidden History statistics, and destructive data operations remain outside these checks. Credentials were neither displayed nor changed.
