@@ -50,6 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         app.elm327Protocol = new ELM327Protocol();
         console.log('[App] ELM327 protocol ready');
         
+        // Initialize data worker
+        initializeDataWorker();
+        
         // Register service worker
         registerServiceWorker();
         
@@ -77,6 +80,205 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Failed to initialize app: ' + error.message, 'error');
     }
 });
+
+/**
+ * Initialize data worker for background data polling
+ */
+function initializeDataWorker() {
+    if (typeof Worker === 'undefined') {
+        console.warn('[App] Web Workers not supported');
+        return;
+    }
+    
+    try {
+        app.worker = new Worker('/workers/data-worker.js');
+        
+        // Handle messages from worker
+        app.worker.addEventListener('message', (event) => {
+            const { type, data } = event.data;
+            
+            switch (type) {
+                case 'INITIALIZED':
+                    console.log('[App] Worker initialized, will poll', data.pidCount, 'PIDs');
+                    break;
+                    
+                case 'POLLING_STARTED':
+                    console.log('[App] Worker started polling');
+                    showToast('Live data collection started');
+                    break;
+                    
+                case 'POLLING_STOPPED':
+                    console.log('[App] Worker stopped polling, collected', data.readingCount, 'readings');
+                    showToast(`Data collection stopped (${data.readingCount} readings)`);
+                    break;
+                    
+                case 'REQUEST_PID':
+                    // Worker requests a PID - send it via Bluetooth
+                    handleWorkerPIDRequest(data);
+                    break;
+                    
+                case 'DATA_UPDATE':
+                    // Worker sends parsed data for UI update
+                    updateDashboardMetrics(data);
+                    break;
+                    
+                case 'METRICS_UPDATE':
+                    // Worker sends calculated metrics
+                    updateDashboardAdvancedMetrics(data);
+                    break;
+                    
+                case 'STORE_BATCH':
+                    // Worker sends batch of readings for storage
+                    storeReadingBatch(data.readings);
+                    break;
+                    
+                case 'ERROR':
+                    console.error('[App] Worker error:', data.message);
+                    showToast('Worker error: ' + data.message, 'error');
+                    break;
+                    
+                default:
+                    console.warn('[App] Unknown worker message:', type);
+            }
+        });
+        
+        // Handle worker errors
+        app.worker.addEventListener('error', (event) => {
+            console.error('[App] Worker error:', event.message);
+            showToast('Worker error', 'error');
+        });
+        
+        // Initialize worker
+        app.worker.postMessage({
+            type: 'INIT',
+            data: {
+                interval: 1000, // 1 second polling interval
+                bufferSize: 10  // Store every 10 readings
+            }
+        });
+        
+        console.log('[App] Data worker initialized');
+    } catch (error) {
+        console.error('[App] Failed to initialize worker:', error);
+    }
+}
+
+/**
+ * Handle PID request from worker
+ */
+async function handleWorkerPIDRequest(data) {
+    const { pid, name } = data;
+    
+    // Check if connected
+    if (!app.bluetoothManager || !app.bluetoothManager.isConnected()) {
+        console.warn('[App] Not connected, cannot fulfill PID request');
+        return;
+    }
+    
+    try {
+        // Send PID request via Bluetooth
+        const response = await app.bluetoothManager.sendCommand(pid);
+        
+        // Parse response using ELM327 protocol
+        const pidCode = pid.split(' ')[1]; // Extract PID code (e.g., "0C" from "01 0C")
+        const value = app.elm327Protocol.parsePIDResponse(response, pidCode);
+        
+        // Send parsed value back to worker
+        app.worker.postMessage({
+            type: 'PID_RESPONSE',
+            data: {
+                pid: pid,
+                name: name,
+                value: value,
+                raw: response,
+                timestamp: Date.now()
+            }
+        });
+    } catch (error) {
+        console.error('[App] PID request failed:', error);
+        
+        // Send error to worker
+        app.worker.postMessage({
+            type: 'PID_RESPONSE',
+            data: {
+                pid: pid,
+                name: name,
+                value: null,
+                error: error.message,
+                timestamp: Date.now()
+            }
+        });
+    }
+}
+
+/**
+ * Update advanced dashboard metrics
+ */
+function updateDashboardAdvancedMetrics(data) {
+    // Update efficiency score if element exists
+    const efficiencyEl = document.getElementById('efficiency-score');
+    if (efficiencyEl && data.efficiency_score !== undefined) {
+        efficiencyEl.textContent = Math.round(data.efficiency_score);
+    }
+    
+    // Update gear estimate if element exists
+    const gearEl = document.getElementById('estimated-gear');
+    if (gearEl && data.estimated_gear !== undefined) {
+        gearEl.textContent = data.estimated_gear;
+    }
+    
+    // Update fuel consumption if element exists
+    const fuelConsumptionEl = document.getElementById('fuel-consumption');
+    if (fuelConsumptionEl && data.instant_fuel_consumption !== undefined) {
+        fuelConsumptionEl.textContent = data.instant_fuel_consumption.toFixed(1);
+    }
+    
+    // Update aggressiveness if element exists
+    const aggressivenessEl = document.getElementById('aggressiveness');
+    if (aggressivenessEl && data.aggressiveness !== undefined) {
+        aggressivenessEl.textContent = Math.round(data.aggressiveness);
+    }
+}
+
+/**
+ * Store batch of readings from worker
+ */
+async function storeReadingBatch(readings) {
+    try {
+        await app.storage.storeReadings(readings);
+        console.log('[App] Stored batch of', readings.length, 'readings');
+    } catch (error) {
+        console.error('[App] Failed to store reading batch:', error);
+    }
+}
+
+/**
+ * Start live data collection
+ */
+function startDataCollection() {
+    if (!app.worker) {
+        showToast('Worker not initialized', 'error');
+        return;
+    }
+    
+    if (!app.bluetoothManager || !app.bluetoothManager.isConnected()) {
+        showToast('Not connected to vehicle', 'error');
+        return;
+    }
+    
+    app.worker.postMessage({ type: 'START_POLLING', data: { interval: 1000 } });
+}
+
+/**
+ * Stop live data collection
+ */
+function stopDataCollection() {
+    if (!app.worker) {
+        return;
+    }
+    
+    app.worker.postMessage({ type: 'STOP_POLLING' });
+}
 
 /**
  * Register service worker for PWA functionality
@@ -300,6 +502,10 @@ async function handleBluetoothConnect() {
         if (terminalSection) {
             terminalSection.style.display = 'block';
         }
+        
+        // Start live data collection
+        console.log('[App] Starting live data collection...');
+        startDataCollection();
         
     } catch (error) {
         console.error('[App] Bluetooth connection failed:', error);
@@ -674,9 +880,12 @@ function updateDashboardMetrics(data) {
 // Export for use in other modules
 window.app = app;
 window.updateDashboardMetrics = updateDashboardMetrics;
+window.updateDashboardAdvancedMetrics = updateDashboardAdvancedMetrics;
 window.updateConnectionStatus = updateConnectionStatus;
 window.showToast = showToast;
 window.appendTerminal = appendTerminal;
+window.startDataCollection = startDataCollection;
+window.stopDataCollection = stopDataCollection;
 
 console.log('[App] Module loaded');
 

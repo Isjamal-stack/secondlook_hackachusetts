@@ -1,8 +1,13 @@
 /**
- * Data Worker - Web Worker for data processing
- * Offloads heavy computations from the main thread
+ * Data Worker - Web Worker for real-time data polling
+ * Offloads OBD-II data collection and processing from the main thread
  * 
- * This worker will be fully implemented in Task 6
+ * Responsibilities:
+ * - Poll multiple PIDs in the background
+ * - Parse and decode PID responses
+ * - Calculate derived metrics
+ * - Batch data for storage
+ * - Send updates to main thread for UI
  */
 
 console.log('[DataWorker] Worker thread started');
@@ -11,8 +16,25 @@ console.log('[DataWorker] Worker thread started');
 const state = {
     polling: false,
     interval: 1000,
-    pollingTimer: null
+    pollingTimer: null,
+    pidQueue: [],
+    currentPidIndex: 0,
+    dataBuffer: [],
+    bufferSize: 10, // Store 10 readings before sending to storage
+    sessionStartTime: null,
+    readingCount: 0,
+    lastPollingTime: 0
 };
+
+// PIDs to poll (in order of priority)
+const PIDS_TO_POLL = [
+    { pid: '01 0C', name: 'rpm', unit: 'rpm' },           // Engine RPM
+    { pid: '01 0D', name: 'speed', unit: 'km/h' },        // Vehicle Speed
+    { pid: '01 05', name: 'coolant_temp', unit: '°C' },   // Coolant Temperature
+    { pid: '01 04', name: 'engine_load', unit: '%' },     // Engine Load
+    { pid: '01 2F', name: 'fuel_level', unit: '%' },      // Fuel Level
+    { pid: '01 11', name: 'throttle_pos', unit: '%' }     // Throttle Position
+];
 
 /**
  * Message handler - receives commands from main thread
@@ -31,12 +53,20 @@ self.addEventListener('message', (event) => {
             stopPolling();
             break;
             
-        case 'PARSE_RESPONSE':
-            parseResponse(data);
+        case 'PID_RESPONSE':
+            handlePidResponse(data);
             break;
             
         case 'INIT':
             initialize(data);
+            break;
+            
+        case 'UPDATE_INTERVAL':
+            updateInterval(data?.interval);
+            break;
+            
+        case 'FLUSH_BUFFER':
+            flushBuffer();
             break;
             
         default:
@@ -49,7 +79,19 @@ self.addEventListener('message', (event) => {
  */
 function initialize(config) {
     console.log('[DataWorker] Initialized with config:', config);
-    self.postMessage({ type: 'INITIALIZED' });
+    
+    if (config?.interval) {
+        state.interval = config.interval;
+    }
+    
+    if (config?.bufferSize) {
+        state.bufferSize = config.bufferSize;
+    }
+    
+    state.sessionStartTime = Date.now();
+    state.pidQueue = [...PIDS_TO_POLL];
+    
+    self.postMessage({ type: 'INITIALIZED', data: { pidCount: PIDS_TO_POLL.length } });
 }
 
 /**
@@ -63,10 +105,13 @@ function startPolling(interval) {
     
     console.log('[DataWorker] Starting polling at', interval, 'ms interval');
     state.polling = true;
-    state.interval = interval;
+    state.interval = interval || state.interval;
+    state.sessionStartTime = Date.now();
+    state.currentPidIndex = 0;
+    state.readingCount = 0;
     
-    // TODO: Implement in Task 6
-    // This will poll PIDs and send parsed data to main thread
+    // Start polling cycle
+    pollNextPid();
     
     self.postMessage({ type: 'POLLING_STARTED' });
 }
@@ -83,31 +128,210 @@ function stopPolling() {
     state.polling = false;
     
     if (state.pollingTimer) {
-        clearInterval(state.pollingTimer);
+        clearTimeout(state.pollingTimer);
         state.pollingTimer = null;
     }
     
-    self.postMessage({ type: 'POLLING_STOPPED' });
+    // Flush remaining data
+    if (state.dataBuffer.length > 0) {
+        flushBuffer();
+    }
+    
+    self.postMessage({ type: 'POLLING_STOPPED', data: { readingCount: state.readingCount } });
 }
 
 /**
- * Parse OBD-II response
+ * Update polling interval
  */
-function parseResponse(data) {
-    // TODO: Implement in Task 6
-    console.log('[DataWorker] Parsing response:', data);
+function updateInterval(interval) {
+    if (interval && interval > 0) {
+        state.interval = interval;
+        console.log('[DataWorker] Polling interval updated to', interval, 'ms');
+    }
+}
+
+/**
+ * Poll the next PID in the queue
+ */
+function pollNextPid() {
+    if (!state.polling) {
+        return;
+    }
     
+    const pid = state.pidQueue[state.currentPidIndex];
+    
+    if (!pid) {
+        console.error('[DataWorker] No PID to poll');
+        return;
+    }
+    
+    // Request PID from main thread (which has access to BluetoothManager)
     self.postMessage({
-        type: 'DATA_UPDATE',
+        type: 'REQUEST_PID',
         data: {
-            rpm: 0,
-            speed: 0,
-            coolant_temp: 0,
-            engine_load: 0,
-            fuel_level: 0,
-            throttle_pos: 0
+            pid: pid.pid,
+            name: pid.name
         }
     });
+    
+    // Move to next PID
+    state.currentPidIndex = (state.currentPidIndex + 1) % state.pidQueue.length;
+    
+    // Schedule next poll based on interval divided by number of PIDs
+    const pollDelay = Math.max(100, state.interval / state.pidQueue.length);
+    state.pollingTimer = setTimeout(() => pollNextPid(), pollDelay);
 }
+
+/**
+ * Handle PID response from main thread
+ */
+function handlePidResponse(responseData) {
+    const { pid, name, value, raw, timestamp } = responseData;
+    
+    if (value === null || value === undefined) {
+        console.warn('[DataWorker] Invalid response for', name, ':', value);
+        return;
+    }
+    
+    state.readingCount++;
+    
+    // Add to data buffer
+    const reading = {
+        timestamp: timestamp || Date.now(),
+        [name]: value,
+        raw: raw
+    };
+    
+    // Merge with existing reading at same timestamp or add new
+    const existingIndex = state.dataBuffer.findIndex(r => 
+        Math.abs(r.timestamp - reading.timestamp) < 100
+    );
+    
+    if (existingIndex >= 0) {
+        // Merge into existing reading
+        state.dataBuffer[existingIndex] = {
+            ...state.dataBuffer[existingIndex],
+            ...reading
+        };
+    } else {
+        // Add new reading
+        state.dataBuffer.push(reading);
+    }
+    
+    // Check if we have a complete reading with all PIDs
+    const latestReading = state.dataBuffer[state.dataBuffer.length - 1];
+    const isComplete = PIDS_TO_POLL.every(p => latestReading[p.name] !== undefined);
+    
+    if (isComplete) {
+        // Send update to UI
+        self.postMessage({
+            type: 'DATA_UPDATE',
+            data: {
+                ...latestReading,
+                complete: true
+            }
+        });
+        
+        // Calculate derived metrics
+        const metrics = calculateMetrics(latestReading);
+        if (metrics) {
+            self.postMessage({
+                type: 'METRICS_UPDATE',
+                data: metrics
+            });
+        }
+    }
+    
+    // Flush buffer if full
+    if (state.dataBuffer.length >= state.bufferSize) {
+        flushBuffer();
+    }
+}
+
+/**
+ * Calculate derived metrics from readings
+ */
+function calculateMetrics(reading) {
+    if (!reading.speed || !reading.rpm) {
+        return null;
+    }
+    
+    const metrics = {};
+    
+    // Instantaneous fuel consumption estimate (L/100km)
+    // Rough formula: (RPM * Load * displacement) / (Speed * 14.7 * fuel_density)
+    // Simplified for demonstration
+    if (reading.speed > 0 && reading.engine_load) {
+        const baseFuelRate = (reading.rpm * reading.engine_load) / 10000;
+        metrics.instant_fuel_consumption = (baseFuelRate / reading.speed) * 100;
+    }
+    
+    // Gear estimate (rough calculation based on RPM/Speed ratio)
+    if (reading.speed > 0) {
+        const ratio = reading.rpm / reading.speed;
+        if (ratio > 100) metrics.estimated_gear = 1;
+        else if (ratio > 60) metrics.estimated_gear = 2;
+        else if (ratio > 40) metrics.estimated_gear = 3;
+        else if (ratio > 30) metrics.estimated_gear = 4;
+        else metrics.estimated_gear = 5;
+    }
+    
+    // Engine efficiency score (0-100)
+    // Higher load at lower RPM is more efficient
+    if (reading.rpm && reading.engine_load) {
+        const idealRPM = 2000;
+        const rpmEfficiency = Math.max(0, 100 - Math.abs(reading.rpm - idealRPM) / 50);
+        const loadEfficiency = reading.engine_load;
+        metrics.efficiency_score = (rpmEfficiency * 0.6 + loadEfficiency * 0.4);
+    }
+    
+    // Driving aggressiveness (0-100)
+    // Based on throttle position and rate of change
+    if (reading.throttle_pos && reading.rpm) {
+        const throttleScore = reading.throttle_pos;
+        const rpmScore = Math.min(100, (reading.rpm / 6000) * 100);
+        metrics.aggressiveness = (throttleScore * 0.7 + rpmScore * 0.3);
+    }
+    
+    return metrics;
+}
+
+/**
+ * Flush data buffer to storage
+ */
+function flushBuffer() {
+    if (state.dataBuffer.length === 0) {
+        return;
+    }
+    
+    console.log('[DataWorker] Flushing', state.dataBuffer.length, 'readings to storage');
+    
+    // Send batch to main thread for storage
+    self.postMessage({
+        type: 'STORE_BATCH',
+        data: {
+            readings: [...state.dataBuffer],
+            count: state.dataBuffer.length
+        }
+    });
+    
+    // Clear buffer
+    state.dataBuffer = [];
+}
+
+/**
+ * Error handler
+ */
+self.addEventListener('error', (event) => {
+    console.error('[DataWorker] Error:', event.message);
+    self.postMessage({
+        type: 'ERROR',
+        data: {
+            message: event.message,
+            filename: event.filename,
+            lineno: event.lineno
+        }
+    });
+});
 
 console.log('[DataWorker] Ready to receive messages');
