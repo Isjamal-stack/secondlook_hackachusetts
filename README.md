@@ -1,5 +1,13 @@
 # ELM327 Vehicle Insights Web Application
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/secondlook-banner.png" alt="SecondLook Banner" width="800"/>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/secondlook-logo.png" alt="SecondLook Logo" width="400"/>
+</div>
+
+<br/>
+
 A Progressive Web Application for monitoring vehicle health, predicting maintenance needs, and analyzing driving performance using ELM327 OBD-II adapters.
 
 ## Features
