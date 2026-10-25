@@ -10,7 +10,19 @@
  * - Send updates to main thread for UI
  */
 
-console.log('[DataWorker] Worker thread started');
+// Worker-specific logger (can't import modules in regular workers)
+const workerLogger = {
+    debug: (...args) => {
+        if (self.DEV_MODE !== false) {
+            console.log('[DataWorker] [DEBUG]', ...args);
+        }
+    },
+    info: (...args) => console.log('[DataWorker] [INFO]', ...args),
+    warn: (...args) => console.warn('[DataWorker] [WARN]', ...args),
+    error: (...args) => console.error('[DataWorker] [ERROR]', ...args)
+};
+
+workerLogger.info('Worker thread started');
 
 // Worker state
 const state = {
@@ -42,7 +54,7 @@ const PIDS_TO_POLL = [
 self.addEventListener('message', (event) => {
     const { type, data } = event.data;
     
-    console.log('[DataWorker] Received message:', type);
+    workerLogger.debug('Received message:', type);
     
     switch (type) {
         case 'START_POLLING':
@@ -70,7 +82,7 @@ self.addEventListener('message', (event) => {
             break;
             
         default:
-            console.warn('[DataWorker] Unknown message type:', type);
+            workerLogger.warn('Unknown message type:', type);
     }
 });
 
@@ -78,7 +90,7 @@ self.addEventListener('message', (event) => {
  * Initialize worker
  */
 function initialize(config) {
-    console.log('[DataWorker] Initialized with config:', config);
+    workerLogger.info('Initialized with config:', config);
     
     if (config?.interval) {
         state.interval = config.interval;
@@ -99,11 +111,11 @@ function initialize(config) {
  */
 function startPolling(interval) {
     if (state.polling) {
-        console.warn('[DataWorker] Already polling');
+        workerLogger.warn('Already polling');
         return;
     }
     
-    console.log('[DataWorker] Starting polling at', interval, 'ms interval');
+    workerLogger.info('Starting polling at', interval, 'ms interval');
     state.polling = true;
     state.interval = interval || state.interval;
     state.sessionStartTime = Date.now();
@@ -124,7 +136,7 @@ function stopPolling() {
         return;
     }
     
-    console.log('[DataWorker] Stopping polling');
+    workerLogger.info('Stopping polling');
     state.polling = false;
     
     if (state.pollingTimer) {
@@ -146,7 +158,7 @@ function stopPolling() {
 function updateInterval(interval) {
     if (interval && interval > 0) {
         state.interval = interval;
-        console.log('[DataWorker] Polling interval updated to', interval, 'ms');
+        workerLogger.info('Polling interval updated to', interval, 'ms');
     }
 }
 
@@ -161,7 +173,7 @@ function pollNextPid() {
     const pid = state.pidQueue[state.currentPidIndex];
     
     if (!pid) {
-        console.error('[DataWorker] No PID to poll');
+        workerLogger.error('No PID to poll');
         return;
     }
     
@@ -189,7 +201,7 @@ function handlePidResponse(responseData) {
     const { pid, name, value, raw, timestamp } = responseData;
     
     if (value === null || value === undefined) {
-        console.warn('[DataWorker] Invalid response for', name, ':', value);
+        workerLogger.warn('Invalid response for', name, ':', value);
         return;
     }
     
@@ -304,7 +316,7 @@ function flushBuffer() {
         return;
     }
     
-    console.log('[DataWorker] Flushing', state.dataBuffer.length, 'readings to storage');
+    workerLogger.debug('Flushing', state.dataBuffer.length, 'readings to storage');
     
     // Send batch to main thread for storage
     self.postMessage({
@@ -323,7 +335,7 @@ function flushBuffer() {
  * Error handler
  */
 self.addEventListener('error', (event) => {
-    console.error('[DataWorker] Error:', event.message);
+    workerLogger.error('Worker error:', event.message);
     self.postMessage({
         type: 'ERROR',
         data: {
@@ -334,4 +346,4 @@ self.addEventListener('error', (event) => {
     });
 });
 
-console.log('[DataWorker] Ready to receive messages');
+workerLogger.info('Ready to receive messages');
