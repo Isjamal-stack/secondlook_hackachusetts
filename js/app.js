@@ -3,12 +3,12 @@
  * Handles app initialization, routing, and UI interactions
  */
 
-import { createExamplePreview } from './demo-examples.js';
-import { createSimulation } from './simulation.js';
-import { GLOSSARY, findingStatus, describeRule, locateFinding, summarizeTrip } from './demo-presentation.js';
+import { createExamplePreview } from './demo/demo-examples.js';
+import { createSimulation } from './demo/simulation.js';
+import { GLOSSARY, findingStatus, describeRule, locateFinding, summarizeTrip } from './demo/demo-presentation.js';
 
 import { StorageManager } from './storage-manager.js';
-import { SampleDataGenerator } from './sample-data.js';
+import { SampleDataGenerator } from './demo/sample-data.js';
 import { ChartManager } from './chart-manager.js';
 import { BluetoothManager } from './bluetooth-manager.js';
 import { ELM327Protocol } from './elm327-protocol.js';

@@ -16,7 +16,12 @@ const STATIC_ASSETS = [
     '/js/bluetooth-manager.js',
     '/js/elm327-protocol.js',
     '/js/storage-manager.js',
-    '/js/sample-data.js',
+    '/js/demo/sample-data.js',
+    '/js/demo/simulation.js',
+    '/js/demo/demo-examples.js',
+    '/js/demo/demo-presentation.js',
+    '/js/demo/insight-engine.js',
+    '/js/demo/simulation-adapter.js',
     '/workers/data-worker.js'
 ];
 
