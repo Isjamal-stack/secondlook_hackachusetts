@@ -3,15 +3,15 @@
  * Handles app initialization, routing, and UI interactions
  */
 
-import { StorageManager } from './storage-manager.js';
+import { StorageManager } from './services/storage-manager.js';
 import { SampleDataGenerator } from './demo/sample-data.js';
-import { ChartManager } from './chart-manager.js';
-import { BluetoothManager } from './bluetooth-manager.js';
-import { ELM327Protocol } from './elm327-protocol.js';
+import { ChartManager } from './ui/chart-manager.js';
+import { BluetoothManager } from './services/bluetooth-manager.js';
+import { ELM327Protocol } from './services/elm327-protocol.js';
 
 // Import logging and error handling
-import logger from './logger.js';
-import errorHandler, { ErrorTypes } from './error-handler.js';
+import logger from './utils/logger.js';
+import errorHandler, { ErrorTypes } from './utils/error-handler.js';
 
 // Import demo controller and dependencies
 import { DemoController } from './demo/demo-controller.js';

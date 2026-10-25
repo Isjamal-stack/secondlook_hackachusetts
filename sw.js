@@ -13,15 +13,19 @@ const STATIC_ASSETS = [
     '/manifest.json',
     '/css/styles.css',
     '/js/app.js',
-    '/js/bluetooth-manager.js',
-    '/js/elm327-protocol.js',
-    '/js/storage-manager.js',
+    '/js/services/bluetooth-manager.js',
+    '/js/services/elm327-protocol.js',
+    '/js/services/storage-manager.js',
+    '/js/ui/chart-manager.js',
+    '/js/utils/logger.js',
+    '/js/utils/error-handler.js',
     '/js/demo/sample-data.js',
     '/js/demo/simulation.js',
     '/js/demo/demo-examples.js',
     '/js/demo/demo-presentation.js',
     '/js/demo/insight-engine.js',
     '/js/demo/simulation-adapter.js',
+    '/js/demo/demo-controller.js',
     '/workers/data-worker.js'
 ];
 

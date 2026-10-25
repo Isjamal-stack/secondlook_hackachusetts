@@ -3,8 +3,8 @@
  * Handles ELM327 AT commands and OBD-II PID encoding/decoding
  */
 
-import { logger } from './logger.js';
-import { errorHandler } from './error-handler.js';
+import { logger } from '../utils/logger.js';
+import { errorHandler } from '../utils/error-handler.js';
 
 export class ELM327Protocol {
     constructor() {
