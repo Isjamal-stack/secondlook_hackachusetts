@@ -13,6 +13,10 @@ import { ChartManager } from './chart-manager.js';
 import { BluetoothManager } from './bluetooth-manager.js';
 import { ELM327Protocol } from './elm327-protocol.js';
 
+// Import logging and error handling
+import logger from './logger.js';
+import errorHandler, { ErrorTypes } from './error-handler.js';
+
 // Application state
 const app = {
     currentView: 'dashboard',
@@ -32,29 +36,29 @@ const app = {
 document.addEventListener('DOMContentLoaded', async () => {
     initializeDemo(); // Independent of Bluetooth, IndexedDB, and the legacy worker.
     configureDemo({ createSimulation });
-    console.log('[App] Initializing...');
+    logger.info('App', 'Initializing application...');
     
     try {
         // Initialize storage
         app.storage = new StorageManager();
         await app.storage.init();
-        console.log('[App] Storage initialized successfully');
+        logger.info('App', 'Storage initialized successfully');
         
         // Initialize sample data generator
         app.sampleDataGenerator = new SampleDataGenerator();
-        console.log('[App] Sample data generator ready');
+        logger.debug('App', 'Sample data generator ready');
         
         // Initialize chart manager
         app.chartManager = new ChartManager(app.storage);
-        console.log('[App] Chart manager ready');
+        logger.debug('App', 'Chart manager ready');
         
         // Initialize Bluetooth manager
         app.bluetoothManager = new BluetoothManager();
-        console.log('[App] Bluetooth manager ready');
+        logger.debug('App', 'Bluetooth manager ready');
         
         // Initialize ELM327 protocol
         app.elm327Protocol = new ELM327Protocol();
-        console.log('[App] ELM327 protocol ready');
+        logger.debug('App', 'ELM327 protocol ready');
         
         // Initialize data worker
         initializeDataWorker();
@@ -81,10 +85,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load initial view
         switchView('dashboard');
         
-        console.log('[App] Initialization complete');
+        logger.info('App', 'Initialization complete');
     } catch (error) {
-        console.error('[App] Initialization failed:', error);
-        showToast('Failed to initialize app: ' + error.message, 'error');
+        errorHandler.handle(error, 'App', ErrorTypes.UNKNOWN, null, showToast);
     }
 });
 
@@ -93,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 function initializeDataWorker() {
     if (typeof Worker === 'undefined') {
-        console.warn('[App] Web Workers not supported');
+        logger.warn('App', 'Web Workers not supported in this browser');
         return;
     }
     
@@ -106,16 +109,16 @@ function initializeDataWorker() {
             
             switch (type) {
                 case 'INITIALIZED':
-                    console.log('[App] Worker initialized, will poll', data.pidCount, 'PIDs');
+                    logger.info('App', `Worker initialized, polling ${data.pidCount} PIDs`);
                     break;
                     
                 case 'POLLING_STARTED':
-                    console.log('[App] Worker started polling');
+                    logger.debug('App', 'Worker started polling');
                     showToast('Live data collection started');
                     break;
                     
                 case 'POLLING_STOPPED':
-                    console.log('[App] Worker stopped polling, collected', data.readingCount, 'readings');
+                    logger.info('App', `Worker stopped, collected ${data.readingCount} readings`);
                     showToast(`Data collection stopped (${data.readingCount} readings)`);
                     break;
                     
@@ -140,18 +143,18 @@ function initializeDataWorker() {
                     break;
                     
                 case 'ERROR':
-                    console.error('[App] Worker error:', data.message);
+                    logger.error('App', 'Worker error', new Error(data.message));
                     showToast('Worker error: ' + data.message, 'error');
                     break;
                     
                 default:
-                    console.warn('[App] Unknown worker message:', type);
+                    logger.warn('App', `Unknown worker message type: ${type}`);
             }
         });
         
         // Handle worker errors
         app.worker.addEventListener('error', (event) => {
-            console.error('[App] Worker error:', event.message);
+            logger.error('App', 'Worker error', event);
             showToast('Worker error', 'error');
         });
         
@@ -164,9 +167,9 @@ function initializeDataWorker() {
             }
         });
         
-        console.log('[App] Data worker initialized');
+        logger.info('App', 'Data worker initialized');
     } catch (error) {
-        console.error('[App] Failed to initialize worker:', error);
+        errorHandler.handle(error, 'App', ErrorTypes.UNKNOWN, null, showToast);
     }
 }
 
@@ -178,9 +181,11 @@ async function handleWorkerPIDRequest(data) {
     
     // Check if connected
     if (!app.bluetoothManager || !app.bluetoothManager.isConnected()) {
-        console.warn('[App] Not connected, cannot fulfill PID request');
+        logger.warn('App', 'Cannot fulfill PID request - not connected');
         return;
     }
+    
+    logger.debug('App', `PID request: ${name} (${pidCode})`);
     
     try {
         // Send PID request via Bluetooth
@@ -202,7 +207,7 @@ async function handleWorkerPIDRequest(data) {
             }
         });
     } catch (error) {
-        console.error('[App] PID request failed:', error);
+        logger.error('App', 'PID request failed', error);
         
         // Send error to worker
         app.worker.postMessage({
@@ -253,9 +258,9 @@ function updateDashboardAdvancedMetrics(data) {
 async function storeReadingBatch(readings) {
     try {
         await app.storage.storeReadings(readings);
-        console.log('[App] Stored batch of', readings.length, 'readings');
+        logger.debug('App', `Stored ${readings.length} readings`);
     } catch (error) {
-        console.error('[App] Failed to store reading batch:', error);
+        errorHandler.handle(error, 'App', ErrorTypes.STORAGE, 'unavailable', showToast);
     }
 }
 
@@ -294,7 +299,7 @@ async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
             const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('[App] Service Worker registered:', registration);
+            logger.info('App', 'Service Worker registered successfully');
             
             // Handle updates
             registration.addEventListener('updatefound', () => {
@@ -306,7 +311,7 @@ async function registerServiceWorker() {
                 });
             });
         } catch (error) {
-            console.error('[App] Service Worker registration failed:', error);
+            logger.error('App', 'Service Worker registration failed', error);
         }
     }
 }
@@ -330,7 +335,7 @@ function setupInstallPrompt() {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         
-        console.log('[App] Install prompt outcome:', outcome);
+        logger.debug('App', `Install prompt outcome: ${outcome}`);
         
         if (outcome === 'accepted') {
             showToast('App installed successfully!');
@@ -371,7 +376,7 @@ function setupNavigation() {
 function switchView(viewName) {
     // The presentation exposes only the verified dashboard. Legacy views stay in source.
     if (viewName !== 'dashboard') return;
-    console.log('[App] Switching to view:', viewName);
+    logger.debug('App', `Switching to view: ${viewName}`);
     
     // Hide all views
     const views = document.querySelectorAll('.view');
@@ -475,10 +480,16 @@ function checkBrowserSupport() {
  * Handle Bluetooth connection
  */
 async function handleBluetoothConnect() {
-    console.log('[App] Bluetooth connect requested');
+    logger.info('App', 'Bluetooth connection requested');
     
     if (!navigator.bluetooth) {
-        showToast('Web Bluetooth is not supported in this browser', 'error');
+        errorHandler.handle(
+            new Error('Web Bluetooth not supported'),
+            'App',
+            ErrorTypes.BLUETOOTH,
+            'unsupported',
+            showToast
+        );
         return;
     }
     
@@ -513,12 +524,11 @@ async function handleBluetoothConnect() {
         }
         
         // Start live data collection
-        console.log('[App] Starting live data collection...');
+        logger.info('App', 'Starting live data collection');
         startDataCollection();
         
     } catch (error) {
-        console.error('[App] Bluetooth connection failed:', error);
-        showToast('Connection failed: ' + error.message, 'error');
+        errorHandler.handle(error, 'App', ErrorTypes.BLUETOOTH, 'connection', showToast);
         updateConnectionStatus('disconnected');
         hideLoading();
     }
@@ -609,7 +619,7 @@ function appendTerminal(text) {
  * Handle load sample data
  */
 async function handleLoadSampleData() {
-    console.log('[App] Loading sample data...');
+    logger.info('App', 'Loading sample data');
     
     if (!confirm('This will generate 30 days of sample vehicle data. Continue?')) {
         return;
@@ -658,7 +668,7 @@ async function handleLoadSampleData() {
         }
         
     } catch (error) {
-        console.error('[App] Load sample data failed:', error);
+        logger.error('Load sample data failed:', error);
         showToast('Failed to load sample data: ' + error.message, 'error');
         hideLoading();
     }
@@ -668,7 +678,7 @@ async function handleLoadSampleData() {
  * Handle export data
  */
 async function handleExportData() {
-    console.log('[App] Exporting data...');
+    logger.info('App', 'Exporting data');
     
     try {
         showLoading('Exporting data...');
@@ -689,8 +699,7 @@ async function handleExportData() {
         hideLoading();
         
     } catch (error) {
-        console.error('[App] Export failed:', error);
-        showToast('Export failed: ' + error.message, 'error');
+        errorHandler.handle(error, 'App', ErrorTypes.UNKNOWN, null, showToast);
         hideLoading();
     }
 }
@@ -703,7 +712,7 @@ async function handleClearData() {
         return;
     }
     
-    console.log('[App] Clearing all data...');
+    logger.info('App', 'Clearing all data');
     
     try {
         showLoading('Clearing data...');
@@ -726,7 +735,7 @@ async function handleClearData() {
         }
         
     } catch (error) {
-        console.error('[App] Clear data failed:', error);
+        logger.error('Clear data failed:', error);
         showToast('Failed to clear data: ' + error.message, 'error');
         hideLoading();
     }
@@ -748,7 +757,7 @@ async function updateStorageUsage() {
             storageUsedEl.textContent = 'Unknown';
         }
     } catch (error) {
-        console.error('[App] Failed to get storage estimate:', error);
+        logger.error('App', 'Failed to get storage estimate', error);
     }
 }
 
@@ -766,7 +775,7 @@ async function loadVehicleProfile() {
             document.getElementById('yearInput').value = vehicle.year || '';
         }
     } catch (error) {
-        console.error('[App] Failed to load vehicle profile:', error);
+        logger.error('App', 'Failed to load vehicle profile', error);
     }
 }
 
@@ -860,43 +869,43 @@ window.appendTerminal = appendTerminal;
 window.startDataCollection = startDataCollection;
 window.stopDataCollection = stopDataCollection;
 
-console.log('[App] Module loaded');
+logger.debug('App', 'Module loaded successfully');
 
 
 /**
  * Load history view with chart
  */
 async function loadHistoryView() {
-    console.log('[App] Loading history view...');
+    logger.debug('App', 'Loading history view');
     
     try {
         // Check if chart manager is ready
         if (!app.chartManager) {
-            console.error('[App] Chart manager not initialized');
+            logger.error('App', 'Chart manager not initialized');
             showToast('Chart system not ready', 'error');
             return;
         }
         
         // Check if Chart.js is loaded
         if (typeof Chart === 'undefined') {
-            console.error('[App] Chart.js library not loaded');
+            logger.error('App', 'Chart.js library not loaded');
             showToast('Charting library not loaded. Check your internet connection.', 'error');
             return;
         }
         
         // Initialize chart ONLY if it doesn't exist
         if (!app.chartManager.charts.history) {
-            console.log('[App] Initializing chart for first time');
+            logger.debug('App', 'Initializing history chart');
             app.chartManager.initHistoryChart();
             
             // Verify chart was created
             if (!app.chartManager.charts.history) {
-                console.error('[App] Failed to initialize chart');
+                logger.error('App', 'Failed to initialize chart');
                 showToast('Failed to initialize chart', 'error');
                 return;
             }
         } else {
-            console.log('[App] Chart already exists, reusing it');
+            logger.debug('App', 'Reusing existing history chart');
         }
         
         // Get current selections
@@ -907,7 +916,7 @@ async function loadHistoryView() {
         await updateHistoryChart(metric, dateRange);
         
     } catch (error) {
-        console.error('[App] Failed to load history view:', error);
+        logger.error('Failed to load history view:', error);
         showToast('Failed to load history data: ' + error.message, 'error');
     }
 }
@@ -930,7 +939,7 @@ async function updateHistoryChart(metric, dateRange) {
         hideLoading();
         
     } catch (error) {
-        console.error('[App] Failed to update chart:', error);
+        logger.error('Failed to update chart:', error);
         hideLoading();
         showToast('Failed to update chart', 'error');
     }
