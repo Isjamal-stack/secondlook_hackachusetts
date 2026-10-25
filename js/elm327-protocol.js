@@ -3,6 +3,9 @@
  * Handles ELM327 AT commands and OBD-II PID encoding/decoding
  */
 
+import { logger } from './logger.js';
+import { errorHandler } from './error-handler.js';
+
 export class ELM327Protocol {
     constructor() {
         this.protocolReady = false;
@@ -26,13 +29,13 @@ export class ELM327Protocol {
      * Initialize ELM327 device
      */
     async initialize(sendCommandFn) {
-        console.log('[ELM327Protocol] Starting initialization...');
+        logger.info('Starting ELM327 initialization...');
         this.sendCommandFn = sendCommandFn;
         
         try {
             // Step 1: Reset
             let response = await this.sendCommand('ATZ');
-            console.log('[ELM327Protocol] Reset response:', response);
+            logger.debug('Reset response:', response);
             
             if (!response.includes('ELM327')) {
                 throw new Error('Device did not respond with ELM327 identifier');
@@ -43,33 +46,33 @@ export class ELM327Protocol {
             
             // Step 2: Echo off
             response = await this.sendCommand('ATE0');
-            console.log('[ELM327Protocol] Echo off response:', response);
+            logger.debug('Echo off response:', response);
             
             // Step 3: Line feeds off
             response = await this.sendCommand('ATL0');
-            console.log('[ELM327Protocol] Line feeds off response:', response);
+            logger.debug('Line feeds off response:', response);
             
             // Step 4: Headers off
             response = await this.sendCommand('ATH0');
-            console.log('[ELM327Protocol] Headers off response:', response);
+            logger.debug('Headers off response:', response);
             
             // Step 5: Set protocol to auto
             response = await this.sendCommand('ATSP0');
-            console.log('[ELM327Protocol] Set protocol response:', response);
+            logger.debug('Set protocol response:', response);
             
             // Step 6: Test with supported PIDs - wait for protocol negotiation
-            console.log('[ELM327Protocol] Testing protocol with 0100...');
+            logger.debug('Testing protocol with 0100...');
             let attempts = 0;
             while (attempts < 10) {
                 response = await this.sendCommand('0100');
-                console.log(`[ELM327Protocol] 0100 response (attempt ${attempts + 1}):`, response);
+                logger.debug(`0100 response (attempt ${attempts + 1}):`, response);
                 
                 if (response.includes('SEARCHING')) {
-                    console.log('[ELM327Protocol] Protocol searching, waiting...');
+                    logger.debug('Protocol searching, waiting...');
                     await this.delay(500);
                     attempts++;
                 } else if (response.includes('41 00')) {
-                    console.log('[ELM327Protocol] Protocol negotiation complete!');
+                    logger.info('Protocol negotiation complete!');
                     this.protocolReady = true;
                     return true;
                 } else if (response.includes('NO DATA') || response.includes('UNABLE TO CONNECT')) {
@@ -84,7 +87,8 @@ export class ELM327Protocol {
             throw new Error('Protocol negotiation timeout');
             
         } catch (error) {
-            console.error('[ELM327Protocol] Initialization failed:', error);
+            logger.error('ELM327 initialization failed:', error);
+            errorHandler.handle(error, 'protocol');
             throw error;
         }
     }
@@ -97,9 +101,9 @@ export class ELM327Protocol {
             throw new Error('Send command function not set');
         }
         
-        console.log('[ELM327Protocol] Sending command:', command);
+        logger.debug('Sending ELM327 command:', command);
         const response = await this.sendCommandFn(command);
-        console.log('[ELM327Protocol] Received response:', response);
+        logger.debug('Received ELM327 response:', response);
         
         return response;
     }
@@ -128,7 +132,7 @@ export class ELM327Protocol {
             try {
                 results[pid] = await this.requestPID(pid);
             } catch (error) {
-                console.error(`[ELM327Protocol] Failed to get PID ${pid}:`, error);
+                logger.error(`Failed to get PID ${pid}:`, error);
                 results[pid] = null;
             }
         }
@@ -151,7 +155,7 @@ export class ELM327Protocol {
         // Expected format: "41 XX YY ZZ..." where XX is the PID
         const match = response.match(/41 ([0-9A-F]{2})((?:\s[0-9A-F]{2})+)/);
         if (!match) {
-            console.warn('[ELM327Protocol] Invalid PID response format:', response);
+            logger.warn('Invalid PID response format:', response);
             return null;
         }
         
@@ -160,7 +164,7 @@ export class ELM327Protocol {
         
         // Verify PID matches
         if (responsePID.toUpperCase() !== pid.toUpperCase()) {
-            console.warn('[ELM327Protocol] PID mismatch:', responsePID, 'vs', pid);
+            logger.warn('PID mismatch:', responsePID, 'vs', pid);
             return null;
         }
         
@@ -170,7 +174,7 @@ export class ELM327Protocol {
             return decoder(data);
         }
         
-        console.warn('[ELM327Protocol] No decoder for PID:', pid);
+        logger.warn('No decoder for PID:', pid);
         return null;
     }
     
@@ -313,4 +317,4 @@ export class ELM327Protocol {
     }
 }
 
-console.log('[ELM327Protocol] Module loaded');
+logger.debug('ELM327Protocol module loaded');
