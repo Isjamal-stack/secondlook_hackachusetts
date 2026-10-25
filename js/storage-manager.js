@@ -3,6 +3,9 @@
  * Handles IndexedDB operations for local data persistence
  */
 
+import { logger } from './logger.js';
+import { errorHandler } from './error-handler.js';
+
 export class StorageManager {
     constructor() {
         this.db = null;
@@ -15,30 +18,31 @@ export class StorageManager {
      */
     async init() {
         return new Promise((resolve, reject) => {
-            console.log('[StorageManager] Initializing database...');
+            logger.info('Initializing database...');
             
             const request = indexedDB.open(this.dbName, this.dbVersion);
             
             request.onerror = () => {
-                console.error('[StorageManager] Database error:', request.error);
+                logger.error('Database error:', request.error);
+                errorHandler.handle(request.error, 'storage');
                 reject(request.error);
             };
             
             request.onsuccess = () => {
                 this.db = request.result;
-                console.log('[StorageManager] Database initialized successfully');
+                logger.info('Database initialized successfully');
                 resolve(this.db);
             };
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                console.log('[StorageManager] Creating database schema...');
+                logger.debug('Creating database schema...');
                 
                 // Vehicle profile store
                 if (!db.objectStoreNames.contains('vehicles')) {
                     const vehicleStore = db.createObjectStore('vehicles', { keyPath: 'id' });
                     vehicleStore.createIndex('vin', 'vin', { unique: true });
-                    console.log('[StorageManager] Created vehicles store');
+                    logger.debug('Created vehicles store');
                 }
                 
                 // Readings store (time-series data)
@@ -46,7 +50,7 @@ export class StorageManager {
                     const readingStore = db.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
                     readingStore.createIndex('timestamp', 'timestamp', { unique: false });
                     readingStore.createIndex('trip_id', 'trip_id', { unique: false });
-                    console.log('[StorageManager] Created readings store');
+                    logger.debug('Created readings store');
                 }
                 
                 // Trips store (aggregated trip data)
@@ -54,7 +58,7 @@ export class StorageManager {
                     const tripStore = db.createObjectStore('trips', { keyPath: 'id' });
                     tripStore.createIndex('start_time', 'start_time', { unique: false });
                     tripStore.createIndex('end_time', 'end_time', { unique: false });
-                    console.log('[StorageManager] Created trips store');
+                    logger.debug('Created trips store');
                 }
                 
                 // Maintenance records store
@@ -62,7 +66,7 @@ export class StorageManager {
                     const maintenanceStore = db.createObjectStore('maintenance', { keyPath: 'id' });
                     maintenanceStore.createIndex('date', 'date', { unique: false });
                     maintenanceStore.createIndex('type', 'type', { unique: false });
-                    console.log('[StorageManager] Created maintenance store');
+                    logger.debug('Created maintenance store');
                 }
                 
                 // DTC history store
@@ -70,16 +74,16 @@ export class StorageManager {
                     const dtcStore = db.createObjectStore('dtcHistory', { keyPath: 'id', autoIncrement: true });
                     dtcStore.createIndex('code', 'code', { unique: false });
                     dtcStore.createIndex('detected_at', 'detected_at', { unique: false });
-                    console.log('[StorageManager] Created dtcHistory store');
+                    logger.debug('Created dtcHistory store');
                 }
                 
                 // Settings store
                 if (!db.objectStoreNames.contains('settings')) {
                     db.createObjectStore('settings', { keyPath: 'key' });
-                    console.log('[StorageManager] Created settings store');
+                    logger.debug('Created settings store');
                 }
                 
-                console.log('[StorageManager] Schema creation complete');
+                logger.info('Schema creation complete');
             };
         });
     }
@@ -113,7 +117,7 @@ export class StorageManager {
             });
             
             transaction.oncomplete = () => {
-                console.log(`[StorageManager] Stored ${count} readings`);
+                logger.debug(`Stored ${count} readings`);
                 resolve(count);
             };
             transaction.onerror = () => reject(transaction.error);
@@ -315,7 +319,7 @@ export class StorageManager {
      * Prune old data (data retention strategy)
      */
     async pruneOldData() {
-        console.log('[StorageManager] Pruning old data...');
+        logger.info('Pruning old data...');
         
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -339,7 +343,7 @@ export class StorageManager {
             };
             
             transaction.oncomplete = () => {
-                console.log(`[StorageManager] Pruned ${count} old readings`);
+                logger.info(`Pruned ${count} old readings`);
                 resolve(count);
             };
             transaction.onerror = () => reject(transaction.error);
@@ -387,7 +391,7 @@ export class StorageManager {
      * Clear all data
      */
     async clearAll() {
-        console.log('[StorageManager] Clearing all data...');
+        logger.info('Clearing all data...');
         
         const stores = ['vehicles', 'readings', 'trips', 'maintenance', 'dtcHistory', 'settings'];
         
@@ -399,7 +403,7 @@ export class StorageManager {
             });
             
             transaction.oncomplete = () => {
-                console.log('[StorageManager] All data cleared');
+                logger.info('All data cleared');
                 resolve();
             };
             transaction.onerror = () => reject(transaction.error);
@@ -422,4 +426,4 @@ export class StorageManager {
     }
 }
 
-console.log('[StorageManager] Module loaded');
+logger.debug('StorageManager module loaded');
