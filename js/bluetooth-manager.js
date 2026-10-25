@@ -4,6 +4,9 @@
  * Also supports TCP connection for emulator testing
  */
 
+import { logger } from './logger.js';
+import { errorHandler } from './error-handler.js';
+
 export class BluetoothManager {
     constructor() {
         this.device = null;
@@ -28,11 +31,11 @@ export class BluetoothManager {
      * Connect to ELM327 device via Bluetooth
      */
     async connect() {
-        console.log('[BluetoothManager] Starting connection...');
+        logger.info('Starting Bluetooth connection...');
         
         try {
             // Request device
-            console.log('[BluetoothManager] Requesting Bluetooth device...');
+            logger.debug('Requesting Bluetooth device...');
             this.device = await navigator.bluetooth.requestDevice({
                 filters: [
                     { services: ['serial_port'] },
@@ -43,35 +46,36 @@ export class BluetoothManager {
                 optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb'] // Common SPP service
             });
             
-            console.log('[BluetoothManager] Device selected:', this.device.name);
+            logger.info('Device selected:', this.device.name);
             
             // Connect to GATT server
-            console.log('[BluetoothManager] Connecting to GATT server...');
+            logger.debug('Connecting to GATT server...');
             this.server = await this.device.gatt.connect();
-            console.log('[BluetoothManager] GATT server connected');
+            logger.debug('GATT server connected');
             
             // Get primary service
-            console.log('[BluetoothManager] Getting primary service...');
+            logger.debug('Getting primary service...');
             const service = await this.server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
-            console.log('[BluetoothManager] Service obtained');
+            logger.debug('Service obtained');
             
             // Get characteristic for TX/RX
-            console.log('[BluetoothManager] Getting characteristic...');
+            logger.debug('Getting characteristic...');
             this.characteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
-            console.log('[BluetoothManager] Characteristic obtained');
+            logger.debug('Characteristic obtained');
             
             // Subscribe to notifications
             await this.characteristic.startNotifications();
             this.characteristic.addEventListener('characteristicvaluechanged', this.handleNotification.bind(this));
-            console.log('[BluetoothManager] Subscribed to notifications');
+            logger.debug('Subscribed to notifications');
             
             this.connected = true;
-            console.log('[BluetoothManager] Connection successful');
+            logger.info('Bluetooth connection successful');
             
             return true;
             
         } catch (error) {
-            console.error('[BluetoothManager] Connection failed:', error);
+            logger.error('Bluetooth connection failed:', error);
+            errorHandler.handle(error, 'bluetooth');
             throw error;
         }
     }
@@ -80,7 +84,7 @@ export class BluetoothManager {
      * Connect via TCP (for emulator testing)
      */
     async connectTCP() {
-        console.log(`[BluetoothManager] Connecting to TCP emulator at ${this.tcpHost}:${this.tcpPort}...`);
+        logger.info(`Connecting to TCP emulator at ${this.tcpHost}:${this.tcpPort}...`);
         
         // Note: Web browsers don't support raw TCP sockets directly
         // We'll simulate this for now - in production, you'd need:
@@ -91,8 +95,8 @@ export class BluetoothManager {
         this.useTCP = true;
         this.connected = true;
         
-        console.log('[BluetoothManager] TCP mode enabled (simulation)');
-        console.log('[BluetoothManager] Note: For real TCP, use Web Serial API or WebSocket bridge');
+        logger.info('TCP mode enabled (simulation)');
+        logger.warn('Note: For real TCP, use Web Serial API or WebSocket bridge');
         
         return true;
     }
@@ -105,7 +109,7 @@ export class BluetoothManager {
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(value);
         
-        console.log('[BluetoothManager] Received:', text);
+        logger.debug('Received data:', text);
         
         // Accumulate response
         this.responseBuffer += text;
@@ -130,7 +134,7 @@ export class BluetoothManager {
             throw new Error('Not connected');
         }
         
-        console.log('[BluetoothManager] Sending command:', command);
+        logger.debug('Sending command:', command);
         
         if (this.useTCP) {
             // TCP simulation - return mock responses for testing
@@ -228,7 +232,7 @@ export class BluetoothManager {
      * Disconnect from device
      */
     async disconnect() {
-        console.log('[BluetoothManager] Disconnecting...');
+        logger.info('Disconnecting from Bluetooth device...');
         
         if (this.device && this.device.gatt.connected) {
             await this.device.gatt.disconnect();
@@ -240,7 +244,7 @@ export class BluetoothManager {
         this.connected = false;
         this.useTCP = false;
         
-        console.log('[BluetoothManager] Disconnected');
+        logger.info('Bluetooth disconnected');
     }
     
     /**
@@ -251,4 +255,4 @@ export class BluetoothManager {
     }
 }
 
-console.log('[BluetoothManager] Module loaded');
+logger.debug('BluetoothManager module loaded');
