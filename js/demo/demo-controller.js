@@ -1,4 +1,30 @@
 /**
+ * @fileoverview Demo System Controller
+ * @module demo/demo-controller
+ * 
+ * Manages the complete demo/simulation system UI and state. Coordinates
+ * simulation playback, chart updates, AI insight rendering, and user
+ * interactions for the demo mode.
+ * 
+ * Responsibilities:
+ * - Demo UI initialization and event handling
+ * - Simulation lifecycle management (start, pause, reset)
+ * - Real-time data rendering and chart updates
+ * - AI explanation integration and display
+ * - Finding detection and visualization
+ * 
+ * @requires demo/demo-examples
+ * @requires demo/demo-presentation
+ * 
+ * @example
+ * import { DemoController } from './demo/demo-controller.js';
+ * 
+ * DemoController.initialize();
+ * DemoController.configure({ createSimulation });
+ * DemoController.start();
+ */
+
+/**
  * Demo Controller Module
  * Manages the demo/simulation UI and state
  * Extracted from app.js to keep demo code organized

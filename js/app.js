@@ -1,4 +1,30 @@
 /**
+ * @fileoverview Main Application Entry Point
+ * @module app
+ * 
+ * This is the core application file that initializes and coordinates all
+ * major subsystems including storage, Bluetooth connectivity, UI management,
+ * and the demo/simulation system. It handles routing, user interactions,
+ * and orchestrates data flow between services.
+ * 
+ * Key responsibilities:
+ * - Application initialization and lifecycle management
+ * - Service coordination (Storage, Bluetooth, Protocol)
+ * - UI routing and navigation
+ * - Event handling and user interactions
+ * - Demo system integration
+ * 
+ * @requires services/storage-manager
+ * @requires services/bluetooth-manager
+ * @requires services/elm327-protocol
+ * @requires ui/chart-manager
+ * @requires utils/logger
+ * @requires utils/error-handler
+ * @requires demo/demo-controller
+ * @requires demo/sample-data
+ */
+
+/**
  * Main Application Entry Point
  * Handles app initialization, routing, and UI interactions
  */

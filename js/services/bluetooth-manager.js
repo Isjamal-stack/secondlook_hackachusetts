@@ -1,4 +1,31 @@
 /**
+ * @fileoverview Bluetooth Manager for ELM327 OBD-II Adapters
+ * @module services/bluetooth-manager
+ * 
+ * Provides Web Bluetooth API integration for connecting to ELM327 OBD-II
+ * adapters. Handles connection management, command transmission, and response
+ * handling. Also includes TCP emulator support for development without hardware.
+ * 
+ * Supported features:
+ * - Web Bluetooth API device pairing
+ * - GATT server connection
+ * - Characteristic notifications
+ * - Command/response protocol
+ * - Mock responses for testing
+ * 
+ * @requires utils/logger
+ * @requires utils/error-handler
+ * 
+ * @example
+ * import { BluetoothManager } from './services/bluetooth-manager.js';
+ * 
+ * const bluetooth = new BluetoothManager();
+ * await bluetooth.connect();
+ * const response = await bluetooth.sendCommand('010C'); // Request RPM
+ * await bluetooth.disconnect();
+ */
+
+/**
  * Bluetooth Manager Module
  * Handles Web Bluetooth API communication with ELM327 devices
  * Also supports TCP connection for emulator testing
@@ -29,6 +56,23 @@ export class BluetoothManager {
     
     /**
      * Connect to ELM327 device via Bluetooth
+     * 
+     * Prompts user to select a Bluetooth device, connects to its GATT server,
+     * and subscribes to characteristic notifications for receiving data.
+     * 
+     * @async
+     * @returns {Promise<boolean>} Resolves to true when connection successful
+     * @throws {Error} If device selection cancelled or connection fails
+     * @throws {Error} If Web Bluetooth API not supported
+     * 
+     * @example
+     * const bluetooth = new BluetoothManager();
+     * try {
+     *     await bluetooth.connect();
+     *     console.log('Connected to OBD-II adapter');
+     * } catch (error) {
+     *     console.error('Failed to connect:', error.message);
+     * }
      */
     async connect() {
         logger.info('Starting Bluetooth connection...');
@@ -127,7 +171,17 @@ export class BluetoothManager {
     }
     
     /**
-     * Send command to device
+     * Send AT or OBD-II command to device and wait for response
+     * 
+     * @async
+     * @param {string} command - AT command or OBD-II PID (e.g., 'ATZ', '010C')
+     * @returns {Promise<string>} Response from device
+     * @throws {Error} If not connected to device
+     * @throws {Error} If command timeout (5 seconds)
+     * 
+     * @example
+     * const response = await bluetooth.sendCommand('010C'); // Request RPM
+     * console.log('Response:', response); // '41 0C 1A F8'
      */
     async sendCommand(command) {
         if (!this.connected) {
@@ -229,7 +283,17 @@ export class BluetoothManager {
     }
     
     /**
-     * Disconnect from device
+     * Disconnect from Bluetooth device
+     * 
+     * Cleanly disconnects from the GATT server and resets connection state.
+     * Safe to call even if not connected.
+     * 
+     * @async
+     * @returns {Promise<void>}
+     * 
+     * @example
+     * await bluetooth.disconnect();
+     * console.log('Disconnected safely');
      */
     async disconnect() {
         logger.info('Disconnecting from Bluetooth device...');

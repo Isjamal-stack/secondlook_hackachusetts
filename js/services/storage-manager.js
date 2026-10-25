@@ -1,4 +1,32 @@
 /**
+ * @fileoverview IndexedDB Storage Manager
+ * @module services/storage-manager
+ * 
+ * Provides a complete IndexedDB persistence layer for vehicle diagnostics data.
+ * Manages multiple object stores for readings, trips, maintenance records,
+ * DTCs, and application settings.
+ * 
+ * Database schema:
+ * - vehicles: Vehicle profile information
+ * - readings: Time-series OBD-II readings
+ * - trips: Aggregated trip data
+ * - maintenance: Maintenance history
+ * - dtcHistory: Diagnostic trouble codes
+ * - settings: Application preferences
+ * 
+ * @requires utils/logger
+ * @requires utils/error-handler
+ * 
+ * @example
+ * import { StorageManager } from './services/storage-manager.js';
+ * 
+ * const storage = new StorageManager();
+ * await storage.init();
+ * await storage.storeReading({ timestamp: Date.now(), rpm: 2000 });
+ * const readings = await storage.getReadings(startDate, endDate);
+ */
+
+/**
  * Storage Manager Module
  * Handles IndexedDB operations for local data persistence
  */
@@ -15,6 +43,18 @@ export class StorageManager {
     
     /**
      * Initialize database with schema
+     * 
+     * Opens IndexedDB connection and creates all required object stores
+     * if they don't exist. Handles schema migrations automatically.
+     * 
+     * @async
+     * @returns {Promise<IDBDatabase>} Initialized database instance
+     * @throws {Error} If database cannot be opened or schema creation fails
+     * 
+     * @example
+     * const storage = new StorageManager();
+     * await storage.init();
+     * console.log('Database ready');
      */
     async init() {
         return new Promise((resolve, reject) => {
@@ -90,6 +130,23 @@ export class StorageManager {
     
     /**
      * Store vehicle reading
+     * 
+     * @async
+     * @param {Object} reading - OBD-II reading data
+     * @param {string} reading.timestamp - ISO timestamp
+     * @param {number} [reading.rpm] - Engine RPM
+     * @param {number} [reading.speed] - Vehicle speed
+     * @param {number} [reading.coolant_temp] - Coolant temperature
+     * @returns {Promise<number>} Auto-generated reading ID
+     * @throws {Error} If storage operation fails
+     * 
+     * @example
+     * const id = await storage.storeReading({
+     *     timestamp: new Date().toISOString(),
+     *     rpm: 2000,
+     *     speed: 60,
+     *     coolant_temp: 90
+     * });
      */
     async storeReading(reading) {
         return new Promise((resolve, reject) => {
@@ -126,6 +183,18 @@ export class StorageManager {
     
     /**
      * Get readings by date range
+     * 
+     * @async
+     * @param {Date|string} startDate - Start of date range
+     * @param {Date|string} endDate - End of date range
+     * @returns {Promise<Array<Object>>} Array of readings within date range
+     * @throws {Error} If query fails
+     * 
+     * @example
+     * const today = new Date();
+     * const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
+     * const readings = await storage.getReadings(weekAgo, today);
+     * console.log(`Found ${readings.length} readings`);
      */
     async getReadings(startDate, endDate) {
         return new Promise((resolve, reject) => {
@@ -351,7 +420,25 @@ export class StorageManager {
     }
     
     /**
-     * Export all data
+     * Export all data as JSON
+     * 
+     * Retrieves all stored data from all object stores and packages it
+     * into a single exportable object.
+     * 
+     * @async
+     * @returns {Promise<Object>} Complete data export
+     * @returns {string} return.version - Export format version
+     * @returns {string} return.exported_at - ISO timestamp of export
+     * @returns {Object} return.vehicle - Vehicle profile data
+     * @returns {Array} return.readings - All readings
+     * @returns {Array} return.trips - All trips
+     * @returns {Array} return.maintenance - Maintenance records
+     * @returns {Array} return.dtc_history - DTC history
+     * 
+     * @example
+     * const data = await storage.exportData();
+     * const json = JSON.stringify(data, null, 2);
+     * // Save to file or send to server
      */
     async exportData() {
         const [vehicle, readings, trips, maintenance, dtcHistory] = await Promise.all([

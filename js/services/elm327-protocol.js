@@ -1,4 +1,34 @@
 /**
+ * @fileoverview ELM327 Protocol Handler
+ * @module services/elm327-protocol
+ * 
+ * Implements the ELM327 AT command set and OBD-II PID protocol for vehicle
+ * diagnostics. Handles adapter initialization, PID encoding/decoding, and
+ * diagnostic trouble code (DTC) management.
+ * 
+ * Supported PIDs:
+ * - 0C: Engine RPM
+ * - 0D: Vehicle Speed
+ * - 05: Coolant Temperature
+ * - 04: Engine Load
+ * - 2F: Fuel Level
+ * - 11: Throttle Position
+ * - 0F: Intake Air Temperature
+ * - 10: Mass Air Flow (MAF)
+ * 
+ * @requires utils/logger
+ * @requires utils/error-handler
+ * 
+ * @example
+ * import { ELM327Protocol } from './services/elm327-protocol.js';
+ * 
+ * const protocol = new ELM327Protocol();
+ * await protocol.initialize(sendCommandFn);
+ * const rpm = await protocol.requestPID('0C');
+ * console.log('RPM:', rpm);
+ */
+
+/**
  * ELM327 Protocol Module
  * Handles ELM327 AT commands and OBD-II PID encoding/decoding
  */
@@ -27,6 +57,23 @@ export class ELM327Protocol {
     
     /**
      * Initialize ELM327 device
+     * 
+     * Sends AT commands to configure the ELM327 adapter and negotiates
+     * the OBD-II protocol with the vehicle.
+     * 
+     * @async
+     * @param {Function} sendCommandFn - Function that sends commands to device
+     * @returns {Promise<boolean>} True if initialization successful
+     * @throws {Error} If device doesn't respond with ELM327 identifier
+     * @throws {Error} If unable to connect to vehicle
+     * @throws {Error} If protocol negotiation timeout
+     * 
+     * @example
+     * const protocol = new ELM327Protocol();
+     * await protocol.initialize(async (cmd) => {
+     *     return await bluetooth.sendCommand(cmd);
+     * });
+     * console.log('ELM327 initialized and ready');
      */
     async initialize(sendCommandFn) {
         logger.info('Starting ELM327 initialization...');
@@ -109,7 +156,17 @@ export class ELM327Protocol {
     }
     
     /**
-     * Request PID value
+     * Request PID value from vehicle
+     * 
+     * @async
+     * @param {string} pid - 2-digit hex PID code (e.g., '0C' for RPM)
+     * @returns {Promise<number|null>} Decoded PID value or null if failed
+     * @throws {Error} If protocol not ready
+     * 
+     * @example
+     * const rpm = await protocol.requestPID('0C');
+     * const speed = await protocol.requestPID('0D');
+     * console.log(`RPM: ${rpm}, Speed: ${speed} km/h`);
      */
     async requestPID(pid) {
         if (!this.protocolReady) {
@@ -124,6 +181,16 @@ export class ELM327Protocol {
     
     /**
      * Request multiple PIDs at once
+     * 
+     * @async
+     * @param {Array<string>} pids - Array of 2-digit hex PID codes
+     * @returns {Promise<Object>} Object mapping PIDs to their values
+     * 
+     * @example
+     * const results = await protocol.requestMultiplePIDs(['0C', '0D', '05']);
+     * console.log('RPM:', results['0C']);
+     * console.log('Speed:', results['0D']);
+     * console.log('Temp:', results['05']);
      */
     async requestMultiplePIDs(pids) {
         const results = {};
