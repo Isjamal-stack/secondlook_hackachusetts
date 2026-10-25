@@ -3,6 +3,8 @@
  * Generates realistic OBD-II data for development and testing
  */
 
+import { logger } from './logger.js';
+
 export class SampleDataGenerator {
     constructor() {
         this.scenarios = {
@@ -43,7 +45,7 @@ export class SampleDataGenerator {
      * Generate sample data for specified number of days
      */
     generateData(days = 30) {
-        console.log(`[SampleDataGenerator] Generating ${days} days of sample data...`);
+        logger.info(`Generating ${days} days of sample data...`);
         
         const data = {
             vehicle: this.generateVehicleProfile(),
@@ -85,7 +87,7 @@ export class SampleDataGenerator {
             data.dtcHistory = this.generateDTCHistory(days);
         }
         
-        console.log(`[SampleDataGenerator] Generated:`, {
+        logger.info('Generated sample data:', {
             trips: data.trips.length,
             readings: data.readings.length,
             maintenance: data.maintenance.length,
@@ -375,4 +377,4 @@ export class SampleDataGenerator {
     }
 }
 
-console.log('[SampleDataGenerator] Module loaded');
+logger.debug('SampleDataGenerator module loaded');
