@@ -1,0 +1,32 @@
+{
+  "name": "secondlook",
+  "version": "1.0.0",
+  "description": "Progressive Web App for OBD-II vehicle diagnostics",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/**/*.test.mjs",
+    "test:unit": "node --test tests/unit/**/*.test.mjs",
+    "test:integration": "node --test tests/integration/**/*.test.mjs",
+    "test:e2e": "node --test tests/e2e/**/*.test.mjs",
+    "test:watch": "node --test --watch tests/**/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage tests/**/*.test.mjs",
+    "test:verbose": "node --test --test-reporter=spec tests/**/*.test.mjs",
+    "lint": "echo 'Linting not configured yet'",
+    "start": "python3 -m http.server 8000",
+    "emulator": "cd emulator && python3 start-emulator.py"
+  },
+  "keywords": [
+    "obd-ii",
+    "elm327",
+    "vehicle-diagnostics",
+    "pwa",
+    "web-bluetooth"
+  ],
+  "author": "SecondLook Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
