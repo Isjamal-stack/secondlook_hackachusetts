@@ -3,7 +3,7 @@
  * Generates realistic OBD-II data for development and testing
  */
 
-import { logger } from '../utils/logger.js';
+import logger from '../utils/logger.js';
 
 export class SampleDataGenerator {
     constructor() {

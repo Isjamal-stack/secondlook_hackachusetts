@@ -432,7 +432,7 @@ export function renderAnalysis(event, explanation = null, { example = false } = 
         title: event.condition === 'insufficient_data' ? 'Collecting enough readings'
             : event.condition === 'normal_warmup' ? 'Temperature is steady in this window'
             : 'A reading pattern needs your review',
-        explanation: 'The analysis is shown in the evidence below. These readings alone cannot establish the vehicle's condition.',
+        explanation: 'The analysis is shown in the evidence below. These readings alone cannot establish the vehicle\'s condition.',
         next_step: event.approved_next_step, 
         limitation: event.limitations.join(' ') || 'The cause cannot be determined from these readings.', 
         explanation_source: 'template' 
