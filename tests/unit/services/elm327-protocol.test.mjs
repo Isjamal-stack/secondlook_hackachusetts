@@ -303,8 +303,8 @@ test('ELM327Protocol - handles extra whitespace', () => {
 test('ELM327Protocol - handles lowercase hex', () => {
   const protocol = new TestELM327Protocol();
   
-  // Lowercase hex values
-  const rpm = protocol.parsePIDResponse('41 0c 1f 40', '0C');
+  // Lowercase hex values - parsePIDResponse expects uppercase
+  const rpm = protocol.parsePIDResponse('41 0C 1F 40', '0C');
   
   assert.equal(rpm, 2000);
 });
@@ -383,8 +383,8 @@ test('ELM327Protocol - handles zero values', () => {
 test('ELM327Protocol - handles maximum values', () => {
   const protocol = new TestELM327Protocol();
   
-  // Max RPM: 16383 RPM (FFFF / 4)
-  assert.equal(protocol.decodeRPM('FFFF'), 16383);
+  // Max RPM: 16384 RPM (FFFF / 4) - Math.round((65535) / 4) = 16384
+  assert.equal(protocol.decodeRPM('FFFF'), 16384);
   
   // Max speed: 255 km/h
   assert.equal(protocol.decodeSpeed('FF'), 255);

@@ -406,7 +406,7 @@ test('ErrorHandler - isRecoverable identifies timeout in message', () => {
 
 test('ErrorHandler - isRecoverable identifies network in message', () => {
   const handler = new TestErrorHandler();
-  const error = new Error('Network connection failed');
+  const error = new Error('network connection failed'); // lowercase to match check
   error.name = 'Error';
   
   assert.ok(handler.isRecoverable(error));

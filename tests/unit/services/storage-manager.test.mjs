@@ -139,7 +139,9 @@ class TestStorageManager {
       const request = store.get(key);
       
       request.addEventListener('success', () => {
-        resolve(request.result ? request.result.value : null);
+        const result = request.result;
+        // Handle both undefined and null results
+        resolve(result && result.value !== undefined ? result.value : null);
       });
       request.addEventListener('error', () => reject(request.error));
     });
@@ -287,6 +289,7 @@ test('StorageManager - stores settings', async () => {
   const storage = new TestStorageManager(db);
   
   await storage.storeSetting('theme', 'dark');
+  await wait(10); // Wait for async operations
   const value = await storage.getSetting('theme');
   
   assert.equal(value, 'dark');
@@ -297,7 +300,9 @@ test('StorageManager - updates existing settings', async () => {
   const storage = new TestStorageManager(db);
   
   await storage.storeSetting('theme', 'light');
+  await wait(10);
   await storage.storeSetting('theme', 'dark');
+  await wait(10);
   
   const value = await storage.getSetting('theme');
   
@@ -320,6 +325,7 @@ test('StorageManager - stores multiple independent settings', async () => {
   await storage.storeSetting('theme', 'dark');
   await storage.storeSetting('units', 'metric');
   await storage.storeSetting('notifications', true);
+  await wait(10); // Wait for all operations
   
   assert.equal(await storage.getSetting('theme'), 'dark');
   assert.equal(await storage.getSetting('units'), 'metric');

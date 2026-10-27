@@ -66,7 +66,7 @@ export function createMockDatabase(options = {}) {
              * @returns {Object} Request object
              */
             put(value, key) {
-              const actualKey = key || value.id || value.sessionId;
+              const actualKey = key || value.key || value.id || value.sessionId;
               storeData.set(actualKey, value);
               
               return {
@@ -89,7 +89,7 @@ export function createMockDatabase(options = {}) {
              * @returns {Object} Request object
              */
             add(value, key) {
-              const actualKey = key || value.id || value.sessionId;
+              const actualKey = key || value.key || value.id || value.sessionId;
               if (storeData.has(actualKey)) {
                 const error = new Error('Key already exists');
                 return {
