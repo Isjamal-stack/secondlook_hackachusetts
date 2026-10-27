@@ -994,8 +994,6 @@ async function handleMetricChange(event) {
 // Demo System Integration
 // ============================================================================
 
-import { DemoController } from './demo/demo-controller.js';
-
 // Expose demo API globally for backward compatibility
 window.secondLookUI = {
     renderReading: DemoController.renderReading,

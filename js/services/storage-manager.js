@@ -31,8 +31,8 @@
  * Handles IndexedDB operations for local data persistence
  */
 
-import { logger } from '../utils/logger.js';
-import { errorHandler } from '../utils/error-handler.js';
+import logger from '../utils/logger.js';
+import errorHandler, { ErrorTypes } from '../utils/error-handler.js';
 
 export class StorageManager {
     constructor() {

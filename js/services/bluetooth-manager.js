@@ -31,8 +31,8 @@
  * Also supports TCP connection for emulator testing
  */
 
-import { logger } from '../utils/logger.js';
-import { errorHandler } from '../utils/error-handler.js';
+import logger from '../utils/logger.js';
+import errorHandler, { ErrorTypes } from '../utils/error-handler.js';
 
 export class BluetoothManager {
     constructor() {
