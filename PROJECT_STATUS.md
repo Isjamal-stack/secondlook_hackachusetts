@@ -1,11 +1,24 @@
 # ELM327 Vehicle Insights - Project Status
 
-**Last Updated**: 2026-10-24  
-**Version**: 1.0.0-MVP (In Development)
+**Last Updated**: 2026-10-25  
+**Version**: 1.0.0-MVP (Production Ready)
 
 ## Overview
 
 A Progressive Web Application for monitoring vehicle health, predicting maintenance needs, and analyzing driving performance using ELM327 OBD-II adapters.
+
+## Recent Fix (2026-10-25)
+
+### 🐛 Demo Mode Bug Fixed
+**Issue**: Demo mode "Start" button didn't work after Phase 3 cleanup  
+**Cause**: Import paths in `index.html` weren't updated when files were reorganized  
+**Fix**: Updated import paths to match new file structure:
+- `./js/storage-manager.js` → `./js/services/storage-manager.js`
+- `./js/sample-data.js` → `./js/demo/sample-data.js`
+- `./js/chart-manager.js` → `./js/ui/chart-manager.js`
+
+**Status**: ✅ Fixed and pushed to GitHub (commit 982e40a)  
+**Testing**: See [TEST_DEMO_MODE.md](TEST_DEMO_MODE.md) for verification steps
 
 ## Completed Tasks
 
