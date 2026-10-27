@@ -427,14 +427,44 @@ export function renderAnalysis(event, explanation = null, { example = false } = 
     );
     
     // Show template explanation as fallback
+    const templateExplanations = {
+        'normal_warmup': {
+            title: 'Normal engine warm-up pattern',
+            explanation: 'SUMMARY: The engine coolant temperature is rising steadily from a cold start, which is normal behavior. ' +
+                'LIKELY_CAUSES: The engine is warming up naturally as the coolant circulates and absorbs heat from combustion. ' +
+                'WHY_IT_MATTERS: Proper warm-up ensures the engine reaches optimal operating temperature for efficiency and emissions control. ' +
+                'WHAT_TO_DO: Continue driving normally. The engine will reach its target temperature soon.',
+        },
+        'temperature_rise': {
+            title: 'Temperature rising above normal',
+            explanation: 'SUMMARY: The coolant temperature is climbing above the normal operating range, which requires attention. ' +
+                'LIKELY_CAUSES: Possible low coolant level, thermostat malfunction, cooling fan issue, or radiator blockage. ' +
+                'WHY_IT_MATTERS: Overheating can cause serious engine damage including warped cylinder heads or blown head gasket. ' +
+                'WHAT_TO_DO: Pull over safely when possible. Check coolant level when cool. If it continues rising, seek professional help.',
+        },
+        'insufficient_data': {
+            title: 'Collecting baseline readings',
+            explanation: 'SUMMARY: Gathering initial readings to establish baseline patterns for analysis. ' +
+                'LIKELY_CAUSES: Demo just started - need more data points to identify trends. ' +
+                'WHY_IT_MATTERS: Accurate analysis requires multiple readings over time to distinguish normal from abnormal patterns. ' +
+                'WHAT_TO_DO: Wait for more readings. Patterns typically become clear after 10-15 seconds.',
+        }
+    };
+    
+    const template = templateExplanations[event.condition] || {
+        title: 'Pattern detected',
+        explanation: 'SUMMARY: A vehicle data pattern has been detected. ' +
+            'LIKELY_CAUSES: The specific cause depends on multiple factors shown in the evidence. ' +
+            'WHY_IT_MATTERS: Understanding data patterns helps maintain vehicle health. ' +
+            'WHAT_TO_DO: Review the evidence and follow the approved guidance below.',
+    };
+    
     renderExplanation({ 
         event_id: event.event_id,
-        title: event.condition === 'insufficient_data' ? 'Collecting enough readings'
-            : event.condition === 'normal_warmup' ? 'Temperature is steady in this window'
-            : 'A reading pattern needs your review',
-        explanation: 'The analysis is shown in the evidence below. These readings alone cannot establish the vehicle\'s condition.',
+        title: template.title,
+        explanation: template.explanation,
         next_step: event.approved_next_step, 
-        limitation: event.limitations.join(' ') || 'The cause cannot be determined from these readings.', 
+        limitation: event.limitations.join(' ') || 'These readings alone cannot establish the vehicle\'s condition. Professional diagnosis recommended.', 
         explanation_source: 'template' 
     });
     
@@ -503,8 +533,8 @@ export function renderExplanation(explanation) {
     
     demoText('explanation-source', 
         demo.example ? 'Example explanation · Temporary preview' : 
-        explanation.explanation_source === 'ai' ? 'AI explanation' : 
-        'Template explanation · Fallback'
+        explanation.explanation_source === 'ai' ? 'AI explanation · Powered by OpenAI' : 
+        'Template explanation · AI service unavailable (works offline)'
     );
     
     return true;
