@@ -99,19 +99,20 @@ tests/
 - **Test utilities** - Common functions for all tests
 - **Mock Bluetooth** - Full mock Web Bluetooth API
 - **Mock Storage** - Full mock IndexedDB API
-- **Logger tests** - 20+ comprehensive unit tests
+- **Logger tests** - 20+ comprehensive unit tests ✅
+- **Error handler tests** - 40+ tests covering all error types ✅
+- **Storage manager tests** - 25+ tests covering CRUD operations ✅
+- **ELM327 protocol tests** - 50+ tests covering PID decoding ✅
 - **Existing tests** - Hackathon tests preserved and working
 
-### 🚧 In Progress (Phase 6)
-- Unit tests for remaining services
-- Integration tests for data flows
-- E2E tests for full workflows
+### 🚧 In Progress (Phase 6a)
+- Bluetooth manager unit tests (pending)
+- Chart manager unit tests (pending)
+- Demo controller unit tests (pending)
+- Integration tests for data flows (pending)
 
 ### 📋 TODO
-- [ ] Error handler unit tests
 - [ ] Bluetooth manager unit tests
-- [ ] Storage manager unit tests
-- [ ] ELM327 protocol unit tests
 - [ ] Chart manager unit tests
 - [ ] Demo controller unit tests
 - [ ] Bluetooth integration tests
@@ -220,7 +221,10 @@ node --inspect-brk --test tests/unit/services/logger.test.mjs
 
 ### Current Coverage
 - **Helpers**: 100% (complete)
-- **Logger**: 90%+ (20+ tests)
+- **Logger**: 90%+ (20+ tests) ✅
+- **Error Handler**: 90%+ (40+ tests) ✅
+- **Storage Manager**: 80%+ (25+ tests) ✅
+- **ELM327 Protocol**: 85%+ (50+ tests) ✅
 - **Other services**: 0% (not yet started)
 
 ### Target Coverage
@@ -311,5 +315,5 @@ If you encounter issues:
 ---
 
 **Last Updated**: October 24, 2026
-**Status**: Phase 6 - Testing Infrastructure Setup
-**Progress**: Helpers complete, Logger tests complete, More tests in progress
+**Status**: Phase 6a - Services Layer Testing Complete
+**Progress**: Core services fully tested (135+ tests), UI and Demo tests remaining
